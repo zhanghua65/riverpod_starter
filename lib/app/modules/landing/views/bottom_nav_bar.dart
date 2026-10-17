@@ -6,7 +6,7 @@ import '/app/core/values/app_colors.dart';
 import '/app/core/values/app_values.dart';
 import '/app/modules/landing/providers/landing_provider.dart';
 import '/app/modules/landing/ui_model/menu_code.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '/l10n/app_localizations.dart';
 import '/app/modules/landing/ui_model/menu_item.dart';
 
 class BottomNavBar extends ConsumerWidget {
@@ -36,9 +36,12 @@ class BottomNavBar extends ConsumerWidget {
                   "images/${navItem.iconSvgName}",
                   height: AppValues.iconDefaultSize,
                   width: AppValues.iconDefaultSize,
-                  color: _navItems.indexOf(navItem) == selectedIndex
-                      ? AppColors.selectedItemColor
-                      : AppColors.unselectedItemColor,
+                  colorFilter: ColorFilter.mode(
+                    _navItems.indexOf(navItem) == selectedIndex
+                        ? AppColors.selectedItemColor
+                        : AppColors.unselectedItemColor,
+                    BlendMode.srcIn,
+                  ),
                 ),
                 label: navItem.navTitle,
                 tooltip: ""),

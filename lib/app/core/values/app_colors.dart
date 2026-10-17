@@ -29,11 +29,11 @@ abstract class AppColors {
   static const Color textColorBlueGreyDark = Color(0xFF939699);
   static const Color textColorCyan = Color(0xFF38686A);
   static const Color textColorWhite = Color(0xFFFFFFFF);
-  static Color searchFieldTextColor = const Color(0xFF323232).withOpacity(0.5);
+  static Color searchFieldTextColor = const Color(0xFF323232).withValues(alpha: 0.5);
 
   static const Color iconColorDefault = Colors.grey;
 
-  static Color barrierColor = const Color(0xFF000000).withOpacity(0.5);
+  static Color barrierColor = const Color(0xFF000000).withValues(alpha: 0.5);
 
   static Color timelineDividerColor = const Color(0x5438686A);
 
@@ -43,7 +43,7 @@ abstract class AppColors {
 
   static const Color switchActiveColor = colorPrimary;
   static const Color switchInactiveColor = Color(0xFFABABAB);
-  static Color elevatedContainerColorOpacity = Colors.grey.withOpacity(0.5);
+  static Color elevatedContainerColorOpacity = Colors.grey.withValues(alpha: 0.5);
   static const Color suffixImageColor = Colors.grey;
   static const Color selectedItemColor = Colors.white;
   static const Color unselectedItemColor = Colors.grey;

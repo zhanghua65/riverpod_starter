@@ -10,7 +10,6 @@ class AppPages {
   static final router = GoRouter(
     debugLogDiagnostics: true,
     initialLocation: Paths.LANDING,
-    urlPathStrategy: UrlPathStrategy.path,
     routes: <GoRoute>[
       GoRoute(
           name: Routes.LANDING,

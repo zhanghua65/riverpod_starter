@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '/l10n/app_localizations.dart';
 
 import '/app/core/values/app_colors.dart';
 import '/app/routes/app_pages.dart';
@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.light,
         primaryColor: AppColors.colorPrimary,
         textTheme: const TextTheme(
-          button: TextStyle(
+          labelLarge: TextStyle(
             color: Colors.white,
             fontSize: 20.0,
             fontWeight: FontWeight.bold,

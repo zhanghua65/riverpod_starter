@@ -40,7 +40,8 @@ class AssetImageView extends StatelessWidget {
           path,
           height: height,
           width: width,
-          color: color ?? Colors.black,
+          colorFilter:
+              ColorFilter.mode(color ?? Colors.black, BlendMode.srcIn),
         );
       case "png":
       case "jpg":
