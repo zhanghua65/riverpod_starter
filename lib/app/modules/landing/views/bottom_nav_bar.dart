@@ -68,6 +68,11 @@ class BottomNavBar extends ConsumerWidget {
 
     return [
       BottomNavItem(
+        navTitle: "作息",
+        iconSvgName: "ic_alarm.svg",
+        menuCode: MenuCode.RHYTHM,
+      ),
+      BottomNavItem(
         navTitle: appLocalization.bottomNavHome,
         iconSvgName: "ic_home.svg",
         menuCode: MenuCode.HOME,

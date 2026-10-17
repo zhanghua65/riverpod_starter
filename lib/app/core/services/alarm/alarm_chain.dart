@@ -27,6 +27,7 @@ class AlarmChain {
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+  /// Time of a chain stage; throws for stages outside [AlarmStage.chain].
   DateTime timeOf(AlarmStage stage) {
     switch (stage) {
       case AlarmStage.windDown:
@@ -35,6 +36,9 @@ class AlarmChain {
         return bedtime;
       case AlarmStage.wakeUp:
         return wakeUp;
+      case AlarmStage.nap:
+      case AlarmStage.napWake:
+        throw ArgumentError.value(stage, 'stage', 'not part of the chain');
     }
   }
 
@@ -50,20 +54,36 @@ class AlarmChain {
     return index < AlarmStage.values.length ? AlarmStage.values[index] : null;
   }
 
-  List<int> get ids => [for (final s in AlarmStage.values) idFor(night, s)];
+  /// The night encoded in an id from [idFor].
+  static DateTime nightOf(int id) {
+    final date = id ~/ 10;
+    return DateTime(date ~/ 10000, date ~/ 100 % 100, date % 100);
+  }
+
+  List<int> get ids => [for (final s in AlarmStage.chain) idFor(night, s)];
 
   /// Settings for every stage whose time is still in the future.
   List<AlarmSettings> toAlarmSettings({DateTime? now}) {
     final current = now ?? DateTime.now();
     return [
-      for (final stage in AlarmStage.values)
+      for (final stage in AlarmStage.chain)
         if (timeOf(stage).isAfter(current)) settingsFor(stage),
     ];
   }
 
-  AlarmSettings settingsFor(AlarmStage stage) => AlarmSettings(
+  AlarmSettings settingsFor(AlarmStage stage) =>
+      settingsAt(night, stage, timeOf(stage));
+
+  /// Settings for [stage] of [night] ringing at [time]; also used for stages
+  /// outside the chain, such as the nap capsule.
+  static AlarmSettings settingsAt(
+    DateTime night,
+    AlarmStage stage,
+    DateTime time,
+  ) =>
+      AlarmSettings(
         id: idFor(night, stage),
-        dateTime: timeOf(stage),
+        dateTime: time,
         assetAudioPath: null, // device default alarm sound
         loopAudio: stage.loopAudio,
         vibrate: true,

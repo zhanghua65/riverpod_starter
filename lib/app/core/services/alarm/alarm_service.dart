@@ -31,6 +31,9 @@ class AlarmService {
     return ok;
   }
 
+  Future<bool> schedule(AlarmSettings settings) =>
+      Alarm.set(alarmSettings: settings);
+
   Future<void> cancelChain(AlarmChain chain) async {
     for (final id in chain.ids) {
       await Alarm.stop(id);
