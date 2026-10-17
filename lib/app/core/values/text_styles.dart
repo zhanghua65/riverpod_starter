@@ -79,7 +79,7 @@ final labelStyleAppPrimaryColor = labelStyle.copyWith(
 );
 
 final labelStyleGrey =
-    labelStyle.copyWith(color: const Color(0xFF323232).withOpacity(0.5));
+    labelStyle.copyWith(color: const Color(0xFF323232).withValues(alpha: 0.5));
 
 final labelCyanStyle = labelStyle.copyWith(color: AppColors.textColorCyan);
 

@@ -7,7 +7,6 @@ import '/app/modules/home/views/home_view.dart';
 import '/app/modules/landing/controllers/landing_controller.dart';
 import '/app/modules/landing/ui_model/menu_code.dart';
 import '/app/modules/landing/views/bottom_nav_bar.dart';
-import '/app/modules/other/views/other_view.dart';
 import '/app/modules/settings/views/settings_view.dart';
 
 //ignore: must_be_immutable
@@ -58,8 +57,6 @@ class LandingView extends BaseView<LandingController> {
       case MenuCode.SETTINGS:
         settingsView ??= SettingsView();
         return settingsView!;
-      default:
-        return OtherView();
     }
   }
 

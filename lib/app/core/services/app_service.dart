@@ -6,15 +6,15 @@ abstract class AppService {
 
   static BuildContext get context => AppPages.router.routerDelegate.navigatorKey.currentContext!;
 
-  static Object? get argument => AppPages.router.routerDelegate.currentConfiguration.last.extra;
+  static Object? get argument => AppPages.router.routerDelegate.currentConfiguration.extra;
 
-  static Map<String,String> get queryParams => AppPages.router.routerDelegate.currentConfiguration.last.queryParams;
+  static Map<String,String> get queryParams => AppPages.router.routerDelegate.currentConfiguration.uri.queryParameters;
 
-  static Map<String,String> get pathParams => AppPages.router.routerDelegate.currentConfiguration.last.decodedParams;
+  static Map<String,String> get pathParams => AppPages.router.routerDelegate.currentConfiguration.pathParameters;
 
-  static bool get hasQuery => AppPages.router.routerDelegate.currentConfiguration.location.hasQuery;
+  static bool get hasQuery => AppPages.router.routerDelegate.currentConfiguration.uri.hasQuery;
 
-  static String get path => AppPages.router.routerDelegate.currentConfiguration.location.path;
+  static String get path => AppPages.router.routerDelegate.currentConfiguration.uri.path;
 
 
   ///Use it to debug if any issue occurs with [argument]] [queryParams]] [pathParams]] [hasQuery]] [path]]
@@ -29,15 +29,15 @@ abstract class AppService {
     // print("arg_debug: currentConfiguration.location");
     // print("arg_debug: currentConfiguration.location-> queryParameters: ${AppPages.router.routerDelegate.currentConfiguration.location.queryParameters}");
     // print("arg_debug: currentConfiguration.location->query: ${AppPages.router.routerDelegate.currentConfiguration.location.query}");
-    // print("arg_debug: currentConfiguration.location->hasQuery: ${AppPages.router.routerDelegate.currentConfiguration.location.hasQuery}");
-    // print("arg_debug: currentConfiguration.location->path: ${AppPages.router.routerDelegate.currentConfiguration.location.path}");
+    // print("arg_debug: currentConfiguration.location->hasQuery: ${AppPages.router.routerDelegate.currentConfiguration.uri.hasQuery}");
+    // print("arg_debug: currentConfiguration.location->path: ${AppPages.router.routerDelegate.currentConfiguration.uri.path}");
     //
     //
     // currentConfiguration.last
     // print("arg_debug: currentConfiguration.last");
-    // print("arg_debug: currentConfiguration.last->extra: ${AppPages.router.routerDelegate.currentConfiguration.last.extra}");
-    // print("arg_debug: currentConfiguration.last->queryParams: ${AppPages.router.routerDelegate.currentConfiguration.last.queryParams}");
-    // print("arg_debug: currentConfiguration.last->decodedParams: ${AppPages.router.routerDelegate.currentConfiguration.last.decodedParams}");
+    // print("arg_debug: currentConfiguration.last->extra: ${AppPages.router.routerDelegate.currentConfiguration.extra}");
+    // print("arg_debug: currentConfiguration.last->queryParams: ${AppPages.router.routerDelegate.currentConfiguration.uri.queryParameters}");
+    // print("arg_debug: currentConfiguration.last->decodedParams: ${AppPages.router.routerDelegate.currentConfiguration.pathParameters}");
     // print("arg_debug: currentConfiguration.last-> encodedParams: ${AppPages.router.routerDelegate.currentConfiguration.last.encodedParams}");
 
 
