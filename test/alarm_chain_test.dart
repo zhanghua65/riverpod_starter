@@ -14,6 +14,7 @@ void main() {
     expect(chain.ids, [202610170, 202610171, 202610172]);
     expect(chain.ids.every((id) => id < 0x7fffffff), isTrue);
     expect(AlarmChain.stageOf(202610172), AlarmStage.wakeUp);
+    expect(AlarmChain.nightOf(202610172), DateTime(2026, 10, 17));
   });
 
   test('consecutive nights do not collide', () {

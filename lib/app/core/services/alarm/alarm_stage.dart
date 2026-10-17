@@ -21,7 +21,24 @@ enum AlarmStage {
     title: '起床啦',
     body: '新的一天，慢慢醒来',
     loopAudio: true,
+  ),
+
+  /// 午休胶囊：破戒晚睡后的第二天中午，提醒小睡 20 分钟。
+  nap(
+    title: '午休胶囊',
+    body: '昨晚睡晚了，中午小睡 20 分钟补一补',
+    loopAudio: false,
+  ),
+
+  /// 午休结束：小睡 20 分钟后叫醒。
+  napWake(
+    title: '午休结束',
+    body: '起来活动一下，喝口水',
+    loopAudio: true,
   );
+
+  /// The stages that make up one night's chain, in ringing order.
+  static const chain = [windDown, bedtime, wakeUp];
 
   const AlarmStage({
     required this.title,
@@ -45,11 +62,13 @@ enum AlarmStage {
     switch (this) {
       case AlarmStage.windDown:
       case AlarmStage.bedtime:
+      case AlarmStage.nap:
         return VolumeSettings.fade(
           fadeDuration: const Duration(seconds: 5),
           volume: 0.5,
         );
       case AlarmStage.wakeUp:
+      case AlarmStage.napWake:
         return VolumeSettings.staircaseFade(
           volume: 0.8,
           fadeSteps: [

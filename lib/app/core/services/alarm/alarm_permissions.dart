@@ -18,6 +18,17 @@ abstract class AlarmPermissions {
     return notification && exactAlarm;
   }
 
+  /// Some Android ROMs kill background work under battery optimization,
+  /// which can drop alarms. True when the app is exempt (or not on Android).
+  static Future<bool> batteryOptimizationIgnored() async {
+    if (!Alarm.android) return true;
+    return Permission.ignoreBatteryOptimizations.isGranted;
+  }
+
+  /// Shows the system dialog asking to exempt the app.
+  static Future<bool> requestIgnoreBatteryOptimizations() =>
+      _request(Permission.ignoreBatteryOptimizations);
+
   static Future<bool> _request(Permission permission) async {
     var status = await permission.status;
     if (status.isDenied) {

@@ -1,7 +1,9 @@
+import 'package:alarm/alarm.dart';
 import 'package:go_router/go_router.dart';
 import '/app/routes/app_routes.dart';
 import '/app/modules/landing/views/landing_view.dart';
 import '/app/modules/project_details/views/project_details_view.dart';
+import '/app/modules/rhythm/views/ring_view.dart';
 
 
 class AppPages {
@@ -19,6 +21,11 @@ class AppPages {
           name: Routes.PROJECT_DETAILS,
           path: Paths.PROJECT_DETAILS,
           builder: (context, state) => ProjectDetailsView()),
+      GoRoute(
+          name: Routes.RING,
+          path: Paths.RING,
+          builder: (context, state) =>
+              RingView(alarm: state.extra! as AlarmSettings)),
     ],
   );
 }

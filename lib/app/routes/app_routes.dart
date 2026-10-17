@@ -7,6 +7,7 @@ abstract class Routes {
   static const String SETTINGS = 'settings';
   static const String OTHER = 'other';
   static const String PROJECT_DETAILS = 'project-details';
+  static const String RING = 'ring';
 }
 
 abstract class Paths {
@@ -18,4 +19,5 @@ abstract class Paths {
   static const String SETTINGS = '/settings';
   static const String OTHER = '/other';
   static const String PROJECT_DETAILS = '/project-details';
+  static const String RING = '/ring';
 }

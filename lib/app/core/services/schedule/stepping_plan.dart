@@ -6,6 +6,11 @@ class ClockTime {
     : assert(hour >= 0 && hour < 24),
       assert(minute >= 0 && minute < 60);
 
+  ClockTime.fromMinutes(int minutes)
+      : this((minutes ~/ 60) % 24, minutes % 60);
+
+  ClockTime.of(DateTime t) : this(t.hour, t.minute);
+
   final int hour;
   final int minute;
 
