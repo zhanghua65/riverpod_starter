@@ -4,22 +4,28 @@ import 'alarm_stage.dart';
 
 /// One night's alarm chain: wind-down, bedtime and the next morning's wake-up.
 ///
-/// Each chain is keyed by the calendar date of its bedtime ([night]), so
-/// several nights can be registered at once without their ids colliding.
+/// Each chain is keyed by its [night], so several nights can be registered at
+/// once without their ids colliding.
 class AlarmChain {
   AlarmChain({
     required this.windDown,
     required this.bedtime,
     required this.wakeUp,
-  })  : assert(windDown.isBefore(bedtime), 'windDown must be before bedtime'),
+    DateTime? night,
+  })  : night = _dateOnly(night ?? bedtime),
+        assert(windDown.isBefore(bedtime), 'windDown must be before bedtime'),
         assert(bedtime.isBefore(wakeUp), 'bedtime must be before wakeUp');
 
   final DateTime windDown;
   final DateTime bedtime;
   final DateTime wakeUp;
 
-  /// The date this chain belongs to (the night of [bedtime]).
-  DateTime get night => DateTime(bedtime.year, bedtime.month, bedtime.day);
+  /// The date this chain belongs to. Defaults to the date of [bedtime]; pass
+  /// it explicitly when bedtime can fall after midnight, otherwise a 00:30
+  /// bedtime and the next evening's 23:45 bedtime would share a night.
+  final DateTime night;
+
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
   DateTime timeOf(AlarmStage stage) {
     switch (stage) {

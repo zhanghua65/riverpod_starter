@@ -21,6 +21,16 @@ class AlarmService {
     return ok;
   }
 
+  /// Replaces every registered alarm with [chains], e.g. a new stepping plan.
+  Future<bool> replaceAll(List<AlarmChain> chains) async {
+    await Alarm.stopAll();
+    var ok = true;
+    for (final chain in chains) {
+      ok = await scheduleChain(chain) && ok;
+    }
+    return ok;
+  }
+
   Future<void> cancelChain(AlarmChain chain) async {
     for (final id in chain.ids) {
       await Alarm.stop(id);
