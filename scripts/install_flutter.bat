@@ -1,7 +1,7 @@
 @echo off
 setlocal
 set FLUTTER_VERSION=3.41.9
-set "INSTALL_DIR=G:\ProgramData"
+set "INSTALL_DIR=G:\Programs"
 set "FLUTTER_BIN=%INSTALL_DIR%\flutter\bin"
 set ZIP=%TEMP%\flutter_windows_%FLUTTER_VERSION%-stable.zip
 
