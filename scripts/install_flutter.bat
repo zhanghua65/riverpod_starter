@@ -1,7 +1,8 @@
 @echo off
 setlocal
 set FLUTTER_VERSION=3.41.9
-set INSTALL_DIR=C:\dev
+set "INSTALL_DIR=G:\ProgramData"
+set "FLUTTER_BIN=%INSTALL_DIR%\flutter\bin"
 set ZIP=%TEMP%\flutter_windows_%FLUTTER_VERSION%-stable.zip
 
 REM China mirrors (remove these 4 lines if you do not need them)
@@ -10,11 +11,11 @@ set PUB_HOSTED_URL=https://pub.flutter-io.cn
 setx FLUTTER_STORAGE_BASE_URL %FLUTTER_STORAGE_BASE_URL% >nul
 setx PUB_HOSTED_URL %PUB_HOSTED_URL% >nul
 
+for %%D in ("%INSTALL_DIR%") do set "INSTALL_DRIVE=%%~dD"
+if not exist "%INSTALL_DRIVE%\" goto :no_drive
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
-if exist "%INSTALL_DIR%\flutter\bin\flutter.bat" (
-  echo Flutter already exists in %INSTALL_DIR%\flutter, skipping download.
-  goto :path
-)
+if not exist "%INSTALL_DIR%" goto :no_dir
+if exist "%FLUTTER_BIN%\flutter.bat" goto :already_installed
 
 set URL=%FLUTTER_STORAGE_BASE_URL%/flutter_infra_release/releases/stable/windows/flutter_windows_%FLUTTER_VERSION%-stable.zip
 set MAX_TRIES=10
@@ -60,9 +61,9 @@ del "%ZIP%"
 
 :path
 REM Add flutter\bin to the USER path (PowerShell avoids setx truncating PATH)
-powershell -NoProfile -Command "$p=[Environment]::GetEnvironmentVariable('Path','User'); $b='%INSTALL_DIR%\flutter\bin'; if(-not $p){$p=''}; if(($p -split ';') -notcontains $b){[Environment]::SetEnvironmentVariable('Path',($p.TrimEnd(';')+';'+$b),'User')}"
+powershell -NoProfile -Command "$p=[Environment]::GetEnvironmentVariable('Path','User'); $b='%FLUTTER_BIN%'; if(-not $p){$p=''}; if(($p -split ';') -notcontains $b){[Environment]::SetEnvironmentVariable('Path',($p.TrimEnd(';')+';'+$b),'User')}"
 
-set PATH=%PATH%;%INSTALL_DIR%\flutter\bin
+set "PATH=%PATH%;%FLUTTER_BIN%"
 
 echo.
 echo Accept Android licenses (type y when asked). Android Studio must be installed first.
@@ -74,3 +75,19 @@ echo Done. Open a NEW terminal, go to the project folder, then run:
 echo   flutter pub get
 echo   flutter build apk
 pause
+exit /b 0
+
+:already_installed
+echo Flutter already exists in "%INSTALL_DIR%\flutter", skipping download.
+goto :path
+
+:no_drive
+echo Drive %INSTALL_DRIVE% does not exist. Edit INSTALL_DIR at the top of this script.
+pause
+exit /b 1
+
+:no_dir
+echo Cannot create "%INSTALL_DIR%". Run this script as administrator,
+echo or change INSTALL_DIR at the top of this script to a folder like G:\dev.
+pause
+exit /b 1
