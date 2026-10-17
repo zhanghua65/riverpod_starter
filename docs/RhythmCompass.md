@@ -59,12 +59,44 @@ MVP 只做三件事:算法排期、睡前强打断、晨间温和唤醒;白噪�
 | V1.0 独立验证 | 本地轻量 Flutter 纯手机 App | 跑通渐进算法与屏幕锁屏干预机制,三段闹钟链,弹性容错 |
 | V2.0 生态协同 | 接入健康数据 | 打通 Health Connect 与 Apple HealthKit,用真实深浅睡、心率数据驱动更精准的推荐与唤醒 |
 
+## 技术选型
+
+### 闹钟插件:alarm
+
+候选方案为 [gdelataillade/alarm](https://github.com/gdelataillade/alarm)(评估版本 5.15.0,2026-10-05 发布)。以下结论来自其 README 与原生源码,未在真机上验证。
+
+| 核查点 | 结论 | 依据 |
+| --- | --- | --- |
+| 多个闹钟 | 支持。每个闹钟用独立 `id` 标识,数量无硬性上限;同一秒的两个闹钟默认互相覆盖,需开 `allowSameSecondScheduling` | README “AlarmSettings model”;iOS `AlarmManager.swift` 以 `[Int: AlarmConfiguration]` 字典保存,每个闹钟一个 `Timer` |
+| 渐进式音量唤醒 | 支持,双端一致。`VolumeSettings.fade` 线性淡入,`VolumeSettings.staircaseFade` 按 `VolumeFadeStep(时间, 音量)` 阶梯递增;`volume` 可设定响铃时的系统音量,停止后恢复 | `lib/model/volume_settings.dart`;Android `AudioService.kt` 每 100ms 调整一次音量,iOS `AlarmRingManager.swift` 用 `AVAudioPlayer.setVolume(_:fadeDuration:)` |
+| iOS 后台与锁屏 | 锁屏、静音、勿扰、睡眠模式下均能响铃;**App 被用户上划杀掉或手机重启后不会响**,只会在被杀时弹一条“闹钟可能不响”的提醒通知 | README “Alarm behaviour” 表与 FAQ;iOS 靠循环播放静音音频 `BackgroundAudioManager` 保活,并用 `BGAppRefreshTask` 每约 15 分钟检查一次,系统层面没有预先注册的闹钟 |
+
+**对三段式闹钟链的影响。**
+
+- 三段闹钟可以用三个 `id` 分别注册,时间相隔 30 分钟以上,不会触发同秒覆盖与重叠问题。
+- 插件不支持周期闹钟(作者明确不做),阶梯计划需要 App 自己按天计算并在每次启动时重新注册未来几天的闹钟,这与“自适应排期引擎”本来就要做的重排一致。
+- 自然节律唤醒可直接用 `staircaseFade`,例如 0 秒静音、60 秒 30%、180 秒 100%;“结合浅睡阶段”需要睡眠数据,V1.0 只能按 90 分钟周期推算时间点,真正的浅睡检测留到 V2.0 接入健康数据。
+- 降速准备和熄灯躺平两段更像提醒而非响铃,可考虑只用本地通知,把闹钟插件留给起床一段,减少后台保活带来的耗电和审核风险。
+
+**iOS 锁屏干预的结论(对应待确认问题第 2 条)。**
+
+- alarm 插件只负责“到点响铃并弹通知”,无法在 iOS 上锁屏、关闭其他 App 或阻止刷短视频;它能提供的“强打断”上限是锁屏下的响铃加通知。
+- iOS 上 App 被杀即不响铃,对“破戒晚睡、睡前随手清后台”的目标用户是实际风险,需要在 UI 中提示用户不要划掉 App,并开启 `warningNotificationOnKill`。
+- 更可靠的 iOS 路线是系统级 AlarmKit(iOS 26+),闹钟由系统托管,杀进程和重启后仍会响,并显示在锁屏和灵动岛;插件作者在 FAQ 中推荐了 Flutter 封装 [flutter_alarmkit](https://pub.dev/packages/flutter_alarmkit)(0.5.0,仍处于早期版本)。
+- 若要真正限制睡前使用短视频 App,需要 Screen Time 相关框架(FamilyControls / ManagedSettings),须向 Apple 申请专门权限,超出闹钟插件范畴,建议作为独立调研项。
+
+**Android 侧。** 使用 `AlarmManager.setAlarmClock` 注册并配合前台服务响铃,App 被杀、Doze 模式下仍可响铃,重启后会自动恢复;`androidFullScreenIntent` 可在锁屏时点亮屏幕并展示 App 自己的全屏页面,具备做“睡前强打断页”的能力。国产 ROM 的电池优化仍可能拦截,需要引导用户关闭。
+
+**接入前提。** 当前仓库为 Dart 2.x / Flutter 3.0.5、iOS 部署目标 9.0,而 alarm 5.15.0 要求 Flutter 3.41 以上(Dart 3)、iOS 13 以上,接入前需先升级工程。iOS 还需开启 Background Modes(audio、fetch),上架时可能因后台音频被审核追问,需要在提审说明中解释用途。
+
+**建议。** V1.0 采用 alarm 插件作为双端起床闹钟方案,Android 端同时承担睡前强打断;iOS 端在 iOS 26 及以上优先评估 AlarmKit,低版本退回 alarm 插件并接受“被杀不响”的限制。
+
 ## 待确认问题
 
 原始介绍未给出以下信息,补充后可进入技术方案:
 
 - [ ] 主战场平台:Android 优先还是 iOS/双端同步?
-- [ ] “屏幕锁屏干预”在 iOS 上受系统限制,具体干预强度与实现方式待定
+- [ ] “屏幕锁屏干预”在 iOS 上受系统限制,具体干预强度与实现方式待定(初步结论见“技术选型”:alarm 插件只能做到锁屏响铃加通知,App 被杀即失效;是否引入 AlarmKit 或 Screen Time 权限待定)
 - [ ] 排期算法的每日前推步长、天数上限是否允许用户自定义
 - [ ] 验收指标(例如连续达标天数、计划完成率)尚未定义
 - [ ] 代码应开在哪个仓库(建议 riverpod_starter)
