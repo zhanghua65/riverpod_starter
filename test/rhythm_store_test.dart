@@ -52,4 +52,20 @@ void main() {
     expect(fixed.actualWakeUp, DateTime(2026, 10, 11, 7, 20));
     expect(fixed.wakeUpSource, BedtimeSource.screen);
   });
+
+  test('sleep duration runs from bedtime to wake-up', () {
+    final bed = SleepLogEntry(
+      night: DateTime(2026, 10, 10),
+      plannedBedtime: DateTime(2026, 10, 10, 23),
+      actualBedtime: DateTime(2026, 10, 10, 23, 40),
+    );
+    expect(bed.sleepDuration, isNull);
+    final woke = bed.withWakeUp(DateTime(2026, 10, 11, 7, 10));
+    expect(woke.sleepDuration, const Duration(hours: 7, minutes: 30));
+    // A wake-up before the bedtime is a bad record, not a negative sleep.
+    expect(
+      bed.withWakeUp(DateTime(2026, 10, 10, 22)).sleepDuration,
+      isNull,
+    );
+  });
 }

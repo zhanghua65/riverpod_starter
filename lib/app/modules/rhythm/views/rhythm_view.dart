@@ -318,6 +318,7 @@ class _PlanOverview extends StatelessWidget {
               : 1,
           streak: streak,
         ),
+        _LastNightCard(log: log),
         if (next != null)
           Card(
             child: ListTile(
@@ -362,8 +363,61 @@ String _logLine(SleepLogEntry entry) {
       ? ''
       : ' · 起床 ${hourMinute(wakeUp)}'
             '${entry.wakeUpSource == BedtimeSource.screen ? '（亮屏）' : ''}';
+  final slept = entry.sleepDuration;
+  final length = slept == null ? '' : ' · 睡了 ${durationText(slept)}';
   return '计划 ${hourMinute(entry.plannedBedtime)} · '
-      '实际 ${hourMinute(entry.actualBedtime)}$screen$woke';
+      '实际 ${hourMinute(entry.actualBedtime)}$screen$woke$length';
+}
+
+/// Last night's sleep at a glance: bedtime, wake-up, length and how it
+/// compares with the plan. Shown every day so the answer is one glance away.
+class _LastNightCard extends StatelessWidget {
+  const _LastNightCard({required this.log});
+
+  final List<SleepLogEntry> log;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final lastNight = DateTime(now.year, now.month, now.day - 1);
+    final entry = log
+        .where(
+          (e) =>
+              e.night.year == lastNight.year &&
+              e.night.month == lastNight.month &&
+              e.night.day == lastNight.day,
+        )
+        .firstOrNull;
+
+    final String headline;
+    final String detail;
+    if (entry == null) {
+      headline = '昨晚还没有睡眠记录';
+      detail = '授予使用情况访问权限可自动记录，也可以点下方“补记昨晚入睡时间”';
+    } else {
+      final slept = entry.sleepDuration;
+      final wake = entry.actualWakeUp;
+      headline = slept == null
+          ? '昨晚 ${hourMinute(entry.actualBedtime)} 入睡'
+          : '昨晚睡了 ${durationText(slept)}';
+      final lines = <String>[
+        '入睡 ${hourMinute(entry.actualBedtime)}'
+            '${wake == null ? '，起床时间还没记录' : ' → 起床 ${hourMinute(wake)}'}',
+        entry.lateBy < Recovery.grace
+            ? '按计划入睡，继续保持'
+            : '比计划晚了 ${entry.lateBy.inMinutes} 分钟',
+        if (slept != null) sleepSummary(slept),
+      ];
+      detail = lines.join('\n');
+    }
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.bedtime_outlined),
+        title: Text(headline),
+        subtitle: Text(detail),
+      ),
+    );
+  }
 }
 
 /// Lets the user correct the bedtime and wake-up recorded for [night].

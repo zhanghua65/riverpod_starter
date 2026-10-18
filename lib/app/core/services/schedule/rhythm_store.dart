@@ -64,6 +64,14 @@ class SleepLogEntry {
 
   Duration get lateBy => actualBedtime.difference(plannedBedtime);
 
+  /// Time in bed, from [actualBedtime] to [actualWakeUp]; null until the
+  /// wake-up is known or when the two times are inconsistent.
+  Duration? get sleepDuration {
+    final wake = actualWakeUp;
+    if (wake == null || !wake.isAfter(actualBedtime)) return null;
+    return wake.difference(actualBedtime);
+  }
+
   Map<String, Object> toJson() => {
     'night': night.toIso8601String(),
     'planned': plannedBedtime.toIso8601String(),

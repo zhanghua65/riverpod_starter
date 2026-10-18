@@ -44,6 +44,7 @@ void main() {
     expect(alarms.alarms, isNotEmpty);
     expect(find.text('目标 23:00 睡 · 07:00 起'), findsOneWidget);
     expect(find.text('补记昨晚入睡时间'), findsOneWidget);
+    expect(find.text('昨晚还没有睡眠记录'), findsOneWidget);
   }, variant: notAndroid);
 
   testWidgets('the wind-down page waits for the user', (tester) async {

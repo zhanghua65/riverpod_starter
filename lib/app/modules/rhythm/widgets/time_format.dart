@@ -18,6 +18,14 @@ String sleepSummary(Duration sleep) {
   return '睡 ${hours.toStringAsFixed(1)} 小时，约 ${cycles.toStringAsFixed(1)} 个周期';
 }
 
+/// "7小时20分" style length for the sleep log.
+String durationText(Duration d) {
+  final h = d.inMinutes ~/ 60;
+  final m = d.inMinutes % 60;
+  if (h == 0) return '$m分钟';
+  return m == 0 ? '$h小时' : '$h小时$m分';
+}
+
 String chainSummary(AlarmChain chain) =>
     '降速 ${hourMinute(chain.windDown)} · 熄灯 ${hourMinute(chain.bedtime)} · '
     '起床 ${hourMinute(chain.wakeUp)}\n'
