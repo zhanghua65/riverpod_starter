@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/stepping_plan.dart';
+import '/app/core/utils/wake_time_recommender.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
 
 /// Lets the user enter the current and target schedule and previews the
@@ -59,6 +60,22 @@ class _PlanSetupState extends State<PlanSetup> {
     }
   }
 
+  /// 按目标就寝时间推算的起床时间（90 分钟周期）。
+  List<(WakeTimeRecommendation, ClockTime)> _recommendations() {
+    final now = DateTime.now();
+    final bedtime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _targetBedtime.hour,
+      _targetBedtime.minute,
+    );
+    return [
+      for (final r in WakeTimeRecommender.recommend(bedtime))
+        (r, ClockTime.of(r.wakeTime)),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final plan = _plan;
@@ -74,8 +91,29 @@ class _PlanSetupState extends State<PlanSetup> {
         const Text('每晚最多提前 30 分钟，最后一晚到达目标；之后每天按目标作息提醒。'),
         _timeTile('现在几点睡', _currentBedtime, (t) => _currentBedtime = t),
         _timeTile('现在几点起', _currentWakeUp, (t) => _currentWakeUp = t),
-        _timeTile('目标就寝', _targetBedtime, (t) => _targetBedtime = t),
+        _timeTile('目标就寝', _targetBedtime, (t) {
+          _targetBedtime = t;
+          // 就寝时间变化后，起床时间跟随推荐，仍可手动修改。
+          _targetWakeUp = _recommendations().firstWhere((r) => r.isPrimary).$2;
+        }),
         _timeTile('目标起床', _targetWakeUp, (t) => _targetWakeUp = t),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final r in _recommendations())
+              ChoiceChip(
+                label: Text(
+                  '${r.$2}${r.$1.isPrimary ? ' 推荐' : ''}'
+                  '（${r.$1.cycles} 个周期）',
+                ),
+                selected: _targetWakeUp == r.$2,
+                onSelected: (_) => setState(() {
+                  _targetWakeUp = r.$2;
+                  _rebuildPlan();
+                }),
+              ),
+          ],
+        ),
         if (_error != null)
           Text(_error!, style: const TextStyle(color: Colors.red)),
         if (plan != null && config != null) ...[
