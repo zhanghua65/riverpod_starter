@@ -81,6 +81,8 @@ class AdvisorContext {
             'planned': '${ClockTime.of(e.plannedBedtime)}',
             'actual': '${ClockTime.of(e.actualBedtime)}',
             'lateMinutes': e.lateBy.inMinutes,
+            if (e.actualWakeUp != null)
+              'wokeUp': '${ClockTime.of(e.actualWakeUp!)}',
           },
       ],
     };

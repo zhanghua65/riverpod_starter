@@ -132,7 +132,8 @@ class _RingViewState extends ConsumerState<RingView> {
             // Fills in last night if "我已躺下" was never tapped.
             final record = await controller.recordFromScreen();
             if (record == null) return null;
-            comfort.requestFor(record.night, record.recovery);
+            final recovery = record.recovery;
+            if (recovery != null) comfort.requestFor(record.night, recovery);
             return screenRecordMessage(record);
           }),
         ];

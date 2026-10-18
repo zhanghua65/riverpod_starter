@@ -19,4 +19,13 @@ void main() {
     final json = entry.toJson()..remove('source');
     expect(SleepLogEntry.fromJson(json).source, BedtimeSource.manual);
   });
+
+  test('a wake-up survives a round trip and is optional', () {
+    final woke = entry.withWakeUp(DateTime(2026, 10, 11, 7, 20));
+    expect(
+      SleepLogEntry.fromJson(woke.toJson()).actualWakeUp,
+      DateTime(2026, 10, 11, 7, 20),
+    );
+    expect(SleepLogEntry.fromJson(entry.toJson()).actualWakeUp, isNull);
+  });
 }

@@ -17,19 +17,32 @@ enum BedtimeSource {
 }
 
 /// One night in the sleep log: when the user planned to and actually went
-/// to bed.
+/// to bed, and when they got up if known.
 class SleepLogEntry {
   const SleepLogEntry({
     required this.night,
     required this.plannedBedtime,
     required this.actualBedtime,
     this.source = BedtimeSource.manual,
+    this.actualWakeUp,
   });
 
   final DateTime night;
   final DateTime plannedBedtime;
   final DateTime actualBedtime;
   final BedtimeSource source;
+
+  /// When the user started using the phone in the morning; null until it
+  /// is known.
+  final DateTime? actualWakeUp;
+
+  SleepLogEntry withWakeUp(DateTime at) => SleepLogEntry(
+    night: night,
+    plannedBedtime: plannedBedtime,
+    actualBedtime: actualBedtime,
+    source: source,
+    actualWakeUp: at,
+  );
 
   Duration get lateBy => actualBedtime.difference(plannedBedtime);
 
@@ -38,6 +51,7 @@ class SleepLogEntry {
     'planned': plannedBedtime.toIso8601String(),
     'actual': actualBedtime.toIso8601String(),
     'source': source.name,
+    if (actualWakeUp != null) 'wakeUp': actualWakeUp!.toIso8601String(),
   };
 
   factory SleepLogEntry.fromJson(Map<String, dynamic> json) => SleepLogEntry(
@@ -48,6 +62,9 @@ class SleepLogEntry {
     source: json['source'] == BedtimeSource.screen.name
         ? BedtimeSource.screen
         : BedtimeSource.manual,
+    actualWakeUp: json['wakeUp'] is String
+        ? DateTime.tryParse(json['wakeUp'] as String)
+        : null,
   );
 }
 
@@ -175,6 +192,17 @@ class RhythmStore {
       for (final e in loadLog())
         if (e.night != entry.night) e,
     ]..sort((a, b) => b.night.compareTo(a.night));
+    return _saveLog(log);
+  }
+
+  /// Records that the user got up at [at] after [night]. Nothing changes
+  /// when that night has no entry.
+  Future<List<SleepLogEntry>> setWakeUp(DateTime night, DateTime at) =>
+      _saveLog([
+        for (final e in loadLog()) e.night == night ? e.withWakeUp(at) : e,
+      ]);
+
+  Future<List<SleepLogEntry>> _saveLog(List<SleepLogEntry> log) async {
     final kept = log.take(maxLogEntries).toList();
     await _prefs.setString(
       _logKey,

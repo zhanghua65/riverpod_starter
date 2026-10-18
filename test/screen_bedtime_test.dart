@@ -11,8 +11,8 @@ void main() {
   );
   final morning = DateTime(2026, 10, 11, 9);
 
-  DateTime at(int day, int hour, [int minute = 0]) =>
-      DateTime(2026, 10, day, hour, minute);
+  DateTime at(int day, int hour, [int minute = 0, int second = 0]) =>
+      DateTime(2026, 10, day, hour, minute, second);
   ScreenEvent on(DateTime t) => ScreenEvent(t, on: true);
   ScreenEvent off(DateTime t) => ScreenEvent(t, on: false);
 
@@ -115,5 +115,90 @@ void main() {
       ]),
       at(11, 0, 20),
     );
+  });
+
+  group('wake-up', () {
+    DateTime? wakeUp(
+      List<ScreenEvent> events, {
+      DateTime? bedtime,
+      DateTime? now,
+    }) => ScreenBedtime.inferWakeUp(
+      planned: planned,
+      events: events,
+      bedtime: bedtime ?? at(10, 23),
+      now: now ?? morning,
+    );
+
+    test('the first 10 minutes of use after sleep is the wake-up', () {
+      expect(
+        wakeUp([
+          off(at(10, 23)),
+          on(at(11, 7)),
+          off(at(11, 7, 1)),
+          on(at(11, 7, 20)),
+          off(at(11, 7, 45)),
+        ]),
+        at(11, 7, 20),
+      );
+    });
+
+    test('use still going on counts up to now', () {
+      expect(
+        wakeUp([off(at(10, 23)), on(at(11, 6, 50))], now: at(11, 7, 1)),
+        at(11, 6, 50),
+      );
+      expect(
+        wakeUp([off(at(10, 23)), on(at(11, 6, 55))], now: at(11, 7, 1)),
+        isNull,
+      );
+    });
+
+    test('the screen timing out briefly does not break the use', () {
+      expect(
+        wakeUp([
+          off(at(10, 23)),
+          on(at(11, 7)),
+          off(at(11, 7, 6)),
+          on(at(11, 7, 6, 30)),
+          off(at(11, 7, 12)),
+        ]),
+        at(11, 7),
+      );
+    });
+
+    test(
+      'using the phone at night before sleeping again is not getting up',
+      () {
+        expect(
+          wakeUp([
+            off(at(10, 23)),
+            on(at(11, 2, 30)),
+            off(at(11, 3)),
+            on(at(11, 7, 10)),
+          ]),
+          at(11, 7, 10),
+        );
+      },
+    );
+
+    test('scrolling after tapping "我已躺下" is not getting up', () {
+      expect(
+        wakeUp([
+          on(at(10, 23)),
+          off(at(10, 23, 30)),
+          on(at(11, 6, 40)),
+          off(at(11, 7)),
+        ], bedtime: at(10, 23, 1)),
+        at(11, 6, 40),
+      );
+    });
+
+    test('nothing while still asleep or without a night of sleep', () {
+      expect(wakeUp([off(at(10, 23))], now: at(11, 6)), isNull);
+      expect(
+        wakeUp([off(at(10, 23)), on(at(11, 1)), off(at(11, 1, 30))]),
+        isNull,
+      );
+    });
   });
 }

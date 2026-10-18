@@ -47,16 +47,17 @@ class _RhythmViewState extends ConsumerState<RhythmView>
     if (state == AppLifecycleState.resumed) _recordFromScreen();
   }
 
-  /// Fills in last night from the screen-off time if the user did not.
+  /// Fills in last night's bedtime and wake-up from the screen's history.
   Future<void> _recordFromScreen() async {
     final record = await ref
         .read(rhythmControllerProvider.notifier)
         .recordFromScreen();
     if (record == null) return;
     // Best effort; the kind words show up on this page when they arrive.
-    ref
-        .read(comfortProvider.notifier)
-        .requestFor(record.night, record.recovery);
+    final recovery = record.recovery;
+    if (recovery != null) {
+      ref.read(comfortProvider.notifier).requestFor(record.night, recovery);
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -197,10 +198,20 @@ String recoveryMessage(Recovery recovery) {
 }
 
 String screenRecordMessage(ScreenRecord record) {
-  final off = '昨晚 ${hourMinute(record.bedtime)} 熄屏，已记为入睡时间';
+  final parts = <String>[];
+  final bedtime = record.bedtime;
   final recovery = record.recovery;
-  if (!recovery.isLate) return '$off，按计划入睡，继续保持';
-  return '$off。${recoveryMessage(recovery)}';
+  if (bedtime != null && recovery != null) {
+    final off = '昨晚 ${hourMinute(bedtime)} 熄屏，已记为入睡时间';
+    parts.add(
+      recovery.isLate ? '$off。${recoveryMessage(recovery)}' : '$off，按计划入睡，继续保持',
+    );
+  }
+  final wakeUp = record.wakeUp;
+  if (wakeUp != null) {
+    parts.add('今早 ${hourMinute(wakeUp)} 开始用手机，已记为起床时间');
+  }
+  return parts.join('\n');
 }
 
 class _PlanOverview extends StatelessWidget {
@@ -263,15 +274,19 @@ class _PlanOverview extends StatelessWidget {
                   : Colors.orange,
             ),
             title: Text(monthDay(entry.night)),
-            subtitle: Text(
-              '计划 ${hourMinute(entry.plannedBedtime)} · '
-              '实际 ${hourMinute(entry.actualBedtime)}'
-              '${entry.source == BedtimeSource.screen ? '（熄屏）' : ''}',
-            ),
+            subtitle: Text(_logLine(entry)),
           ),
       ],
     );
   }
+}
+
+String _logLine(SleepLogEntry entry) {
+  final screen = entry.source == BedtimeSource.screen ? '（熄屏）' : '';
+  final wakeUp = entry.actualWakeUp;
+  return '计划 ${hourMinute(entry.plannedBedtime)} · '
+      '实际 ${hourMinute(entry.actualBedtime)}$screen'
+      '${wakeUp == null ? '' : ' · 起床 ${hourMinute(wakeUp)}'}';
 }
 
 class _UpcomingAlarms extends ConsumerWidget {

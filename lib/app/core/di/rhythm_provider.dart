@@ -37,17 +37,26 @@ final rhythmStoreProvider = FutureProvider<RhythmStore>(
 
 final screenUsageProvider = Provider<ScreenUsage>((ref) => ScreenUsage());
 
-/// A bedtime recorded from the screen-off time, and what it changed.
+/// What was recorded for a night from the screen's on/off history.
 class ScreenRecord {
   const ScreenRecord({
     required this.night,
-    required this.bedtime,
-    required this.recovery,
+    this.bedtime,
+    this.recovery,
+    this.wakeUp,
   });
 
   final DateTime night;
-  final DateTime bedtime;
-  final Recovery recovery;
+
+  /// Bedtime taken from the screen-off time; null when the user had
+  /// recorded it already.
+  final DateTime? bedtime;
+
+  /// What recording [bedtime] changed; null with it.
+  final Recovery? recovery;
+
+  /// When the user got up, from the first long screen use in the morning.
+  final DateTime? wakeUp;
 }
 
 final rhythmControllerProvider =
@@ -179,9 +188,11 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     state = AsyncData(_stateOf(null, _store.loadLog()));
   }
 
-  /// Records last night's bedtime from when the screen went off, if the
-  /// user has not recorded it, last night's wake-up has passed and usage
-  /// access is granted. Null when nothing was recorded.
+  /// Fills in last night from the screen's on/off history, once last
+  /// night's wake-up has passed and usage access is granted: the bedtime
+  /// from when the screen went off, if the user has not recorded it, and
+  /// the wake-up from the first [ScreenBedtime.wakeUse] of screen use in
+  /// the morning. Null when nothing new was recorded.
   ///
   /// By then the wake-up has rung, so a late night still books the nap
   /// capsule and re-plans but no longer postpones the wake-up.
@@ -193,7 +204,8 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     final night = DateTime(now.year, now.month, now.day - 1);
     final planned = plan.chainFor(night);
     if (planned == null || now.isBefore(planned.wakeUp)) return null;
-    if (current.log.any((e) => e.night == night)) return null;
+    final logged = _entryFor(current.log, night);
+    if (logged?.actualWakeUp != null) return null;
 
     final events = await ref
         .read(screenUsageProvider)
@@ -202,17 +214,49 @@ class RhythmController extends AsyncNotifier<RhythmState> {
           ScreenBedtime.windowEnd(planned),
         );
     if (events == null) return null;
-    final at = ScreenBedtime.infer(planned: planned, events: events, now: now);
-    if (at == null) return null;
-    // Checked again: the user may have recorded it meanwhile.
-    if ((await future).log.any((e) => e.night == night)) return null;
-    final recovery = await confirmBedtime(
-      night,
-      at,
-      source: BedtimeSource.screen,
+
+    // Read again: the user may have recorded the night meanwhile.
+    final entry = _entryFor((await future).log, night);
+    if (entry?.actualWakeUp != null) return null;
+    DateTime? inferred;
+    Recovery? recovery;
+    var bedtime = entry?.actualBedtime;
+    if (bedtime == null) {
+      inferred = ScreenBedtime.infer(
+        planned: planned,
+        events: events,
+        now: now,
+      );
+      if (inferred == null) return null;
+      bedtime = inferred;
+      recovery = await confirmBedtime(
+        night,
+        inferred,
+        source: BedtimeSource.screen,
+      );
+    }
+
+    final wakeUp = ScreenBedtime.inferWakeUp(
+      planned: planned,
+      events: events,
+      bedtime: bedtime,
+      now: now,
     );
-    return ScreenRecord(night: night, bedtime: at, recovery: recovery);
+    if (wakeUp != null) {
+      final log = await _store.setWakeUp(night, wakeUp);
+      state = AsyncData(_stateOf((await future).plan, log));
+    }
+    if (inferred == null && wakeUp == null) return null;
+    return ScreenRecord(
+      night: night,
+      bedtime: inferred,
+      recovery: recovery,
+      wakeUp: wakeUp,
+    );
   }
+
+  static SleepLogEntry? _entryFor(List<SleepLogEntry> log, DateTime night) =>
+      log.where((e) => e.night == night).firstOrNull;
 
   /// Records that the user went to bed on [night] at [at] and, if that was
   /// late, postpones the wake-up, books a nap capsule and re-plans.

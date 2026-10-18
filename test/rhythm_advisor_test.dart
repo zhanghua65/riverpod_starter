@@ -28,6 +28,7 @@ void main() {
       night: DateTime(2026, 10, 17),
       plannedBedtime: DateTime(2026, 10, 17, 23, 0),
       actualBedtime: DateTime(2026, 10, 18, 0, 40),
+      actualWakeUp: DateTime(2026, 10, 18, 7, 25),
     ),
   ];
   final withWork = AdvisorContext(now: now, plan: plan, work: work, log: log);
@@ -51,6 +52,7 @@ void main() {
         'planned': '23:00',
         'actual': '00:40',
         'lateMinutes': 100,
+        'wokeUp': '07:25',
       });
       expect(noWork.toJson()['work'], isNull);
     });

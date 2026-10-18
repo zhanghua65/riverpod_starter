@@ -146,23 +146,70 @@ void main() {
 
       expect(record!.night, yesterday);
       expect(record.bedtime, yesterdayAt(17, 30));
-      expect(record.recovery.isLate, isTrue);
+      expect(record.recovery!.isLate, isTrue);
       final state = container.read(rhythmControllerProvider).value!;
       expect(state.log.single.source, BedtimeSource.screen);
       expect(state.log.single.actualBedtime, yesterdayAt(17, 30));
       expect(state.plan!.currentBedtime, const ClockTime(17, 30));
     });
 
-    test('a night the user already recorded is left alone', () async {
+    test('a night the user already recorded keeps its bedtime', () async {
       await container.read(rhythmControllerProvider.future);
       await controller().applyPlan(afternoon());
       await controller().confirmBedtime(yesterday, yesterdayAt(16, 5));
+      // Still asleep: no wake-up to add either.
       screen.screenEvents = [ScreenEvent(yesterdayAt(17, 30), on: false)];
 
       expect(await controller().recordFromScreen(), isNull);
       final state = container.read(rhythmControllerProvider).value!;
       expect(state.log.single.source, BedtimeSource.manual);
     });
+
+    // Today 00:00 to now, enough to count as getting up after 00:10.
+    final morningUse = now.hour > 0 || now.minute >= 20;
+    DateTime todayAt(int hour, int minute) =>
+        DateTime(now.year, now.month, now.day, hour, minute);
+
+    test('the morning screen use is logged as the wake-up', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(afternoon());
+      screen.screenEvents = [
+        ScreenEvent(yesterdayAt(15, 0), on: true),
+        ScreenEvent(yesterdayAt(16, 0), on: false),
+        ScreenEvent(todayAt(0, 5), on: true),
+      ];
+
+      final record = await controller().recordFromScreen();
+
+      expect(record!.bedtime, yesterdayAt(16, 0));
+      expect(record.recovery!.isLate, isFalse);
+      expect(record.wakeUp, todayAt(0, 5));
+      final entry = container.read(rhythmControllerProvider).value!.log.single;
+      expect(entry.actualWakeUp, todayAt(0, 5));
+    }, skip: !morningUse);
+
+    test('a manually recorded night gets its wake-up filled in', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(afternoon());
+      await controller().confirmBedtime(yesterday, yesterdayAt(16, 5));
+      screen.screenEvents = [
+        ScreenEvent(yesterdayAt(16, 10), on: false),
+        ScreenEvent(todayAt(0, 5), on: true),
+      ];
+
+      final record = await controller().recordFromScreen();
+
+      expect(record!.bedtime, isNull);
+      expect(record.recovery, isNull);
+      expect(record.wakeUp, todayAt(0, 5));
+      final entry = container.read(rhythmControllerProvider).value!.log.single;
+      expect(entry.source, BedtimeSource.manual);
+      expect(entry.actualBedtime, yesterdayAt(16, 5));
+      expect(entry.actualWakeUp, todayAt(0, 5));
+
+      // Nothing more to fill in.
+      expect(await controller().recordFromScreen(), isNull);
+    }, skip: !morningUse);
 
     test('nothing happens without usage access', () async {
       await container.read(rhythmControllerProvider.future);
