@@ -88,6 +88,12 @@ abstract class AlarmPermissions {
     'openBatteryStrategySettings',
   );
 
+  /// Opens the vendor's per-app permission list, where "锁屏显示" and
+  /// "后台弹出界面" live. Neither can be read from code, so this only guides.
+  static Future<void> openPermissionEditor() => _openVendorPage(
+    'openPermissionEditor',
+  );
+
   static Future<void> _openVendorPage(String method) async {
     final opened = await _channel.invokeMethod<bool>(method) ?? false;
     if (!opened) await openAppSettings();

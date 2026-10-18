@@ -23,6 +23,8 @@ class XiaomiKeepAliveSteps extends StatelessWidget {
         title: Text('3. 在最近任务里锁定本应用'),
         subtitle: Text('打开最近任务，下拉或长按本应用卡片，点锁形图标。锁定后一键清理不会杀掉它。'),
       ),
+      _row('4. 允许锁屏显示、后台弹出界面', '否则闹钟会响但锁屏时屏幕不亮；这两项无法自动检测，请手动确认',
+          '打开权限页', AlarmPermissions.openPermissionEditor),
     ],
   );
 

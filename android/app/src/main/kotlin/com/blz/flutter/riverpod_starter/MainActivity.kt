@@ -54,6 +54,16 @@ class MainActivity : FlutterActivity() {
                                 .putExtra("package_label", applicationInfo.loadLabel(packageManager).toString()),
                         ),
                     )
+                    "openPermissionEditor" -> result.success(
+                        openFirst(
+                            Intent("miui.intent.action.APP_PERM_EDITOR")
+                                .setClassName(
+                                    "com.miui.securitycenter",
+                                    "com.miui.permcenter.permissions.PermissionsEditorActivity",
+                                )
+                                .putExtra("extra_pkgname", packageName),
+                        ),
+                    )
                     "hasUsageAccess" -> result.success(hasUsageAccess())
                     "openUsageAccessSettings" -> {
                         openUsageAccessSettings()

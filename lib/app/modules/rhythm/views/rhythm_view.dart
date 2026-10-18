@@ -689,7 +689,10 @@ class _DebugPanel extends ConsumerWidget {
       tilePadding: EdgeInsets.zero,
       title: const Text('调试'),
       children: [
-        const Text('1 分钟后降速准备，2 分钟后熄灯躺平，3 分钟后起床。会额外注册，不影响计划。'),
+        const Text(
+          '1 分钟后降速准备，2 分钟后熄灯躺平，3 分钟后起床。会额外注册，不影响计划。'
+          '测试前请先锁屏，并确认已允许“锁屏显示”和“后台弹出界面”，否则只会响不会亮屏。',
+        ),
         TextButton(
           onPressed: () async {
             final messenger = ScaffoldMessenger.of(context);
