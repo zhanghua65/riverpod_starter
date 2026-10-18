@@ -5,6 +5,10 @@ import 'package:riverpod_starter/app/modules/onboarding/views/onboarding_gate.da
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  // Off Android the permission rows read as granted without calling the
+  // plugins (flutter_test defaults to Android).
+  final notAndroid = TargetPlatformVariant.only(TargetPlatform.linux);
+
   Widget app() => const ProviderScope(
     child: MaterialApp(home: OnboardingGate(child: Text('主页'))),
   );
@@ -23,13 +27,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('开启闹钟所需权限'), findsOneWidget);
 
-    await tester.tap(find.text('下一步'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('开始使用'));
     await tester.pumpAndSettle();
 
     expect(find.text('主页'), findsOneWidget);
-  });
+  }, variant: notAndroid);
 
   testWidgets('skipping finishes the guide and it is not shown again', (
     tester,
@@ -45,5 +47,5 @@ void main() {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
     expect(find.text('主页'), findsOneWidget);
-  });
+  }, variant: notAndroid);
 }

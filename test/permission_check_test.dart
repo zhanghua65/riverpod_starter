@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +9,12 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   // Off Android nothing can be withheld and no platform channel is used.
+  // flutter_test defaults to Android, so pin another platform.
+  final notAndroid = TargetPlatformVariant.only(TargetPlatform.linux);
+
   test('check reports everything granted off Android', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final report = await AlarmPermissions.check();
     expect(report.allGranted, isTrue);
   });
@@ -23,5 +29,5 @@ void main() {
     expect(find.text('诊断日志'), findsOneWidget);
     // The vendor switches only show on Xiaomi phones.
     expect(find.text('锁屏显示、后台弹出界面'), findsNothing);
-  });
+  }, variant: notAndroid);
 }
