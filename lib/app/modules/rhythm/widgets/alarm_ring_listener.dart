@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/app/core/di/alarm_provider.dart';
 import '/app/core/utils/app_log.dart';
 import '/app/routes/app_pages.dart';
+import '/app/modules/rhythm/views/ring_view.dart';
 import '/app/routes/app_routes.dart';
 
 /// Opens the ring page whenever an alarm starts ringing, including one that
@@ -72,11 +73,29 @@ class _AlarmRingListenerState extends ConsumerState<AlarmRingListener>
       if (_shown.add(alarm.id)) {
         // The navigator may not be built yet when the app is launched by
         // the alarm.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          AppLog.add('ring', 'open page ${alarm.id}');
-          AppPages.router.push(Paths.RING, extra: alarm);
-        });
+        WidgetsBinding.instance.addPostFrameCallback((_) => _open(alarm));
       }
+    }
+  }
+
+  /// Shows the ring page for [alarm]. A page still waiting for an answer
+  /// from an earlier alarm (say the wind-down nobody tapped) is replaced
+  /// rather than left underneath, where it would pop up again once the
+  /// newer page is closed.
+  void _open(AlarmSettings alarm) {
+    final router = AppPages.router;
+    final depth = router.routerDelegate.currentConfiguration.matches.length;
+    final previous = RingView.openId;
+    if (previous == alarm.id) return;
+    RingView.openId = alarm.id;
+    if (previous == null) {
+      AppLog.add('ring', 'open page ${alarm.id} depth=$depth');
+      router.push(Paths.RING, extra: alarm);
+    } else {
+      AppLog.add('ring', 'replace page $previous with ${alarm.id}');
+      // Its page is going away, so nothing else could stop it.
+      ref.read(alarmServiceProvider).stop(previous);
+      router.pushReplacement(Paths.RING, extra: alarm);
     }
   }
 

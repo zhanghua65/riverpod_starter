@@ -7,6 +7,7 @@ import '/app/core/di/alarm_provider.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/alarm/alarm_stage.dart';
+import '/app/core/utils/app_log.dart';
 import '/app/core/values/app_colors.dart';
 import '/app/modules/rhythm/views/rhythm_view.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
@@ -23,6 +24,10 @@ class RingView extends ConsumerStatefulWidget {
 
   final AlarmSettings alarm;
 
+  /// Id of the ring page currently open, if any. Set by whoever pushes the
+  /// page and cleared when that page goes away.
+  static int? openId;
+
   @override
   ConsumerState<RingView> createState() => _RingViewState();
 }
@@ -33,6 +38,19 @@ class _RingViewState extends ConsumerState<RingView> {
   int get _id => widget.alarm.id;
   AlarmStage? get _stage => AlarmChain.stageOf(_id);
   DateTime get _night => AlarmChain.nightOf(_id);
+
+  @override
+  void initState() {
+    super.initState();
+    AppLog.add('ring', 'page shown $_id');
+  }
+
+  @override
+  void dispose() {
+    AppLog.add('ring', 'page disposed $_id');
+    if (RingView.openId == _id) RingView.openId = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -212,14 +230,30 @@ class _RingViewState extends ConsumerState<RingView> {
   Future<void> _finish(Future<String?> Function() action) async {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
-    await ref.read(alarmServiceProvider).stop(_id);
-    final message = await action();
-    if (!mounted) return;
-    if (context.canPop()) {
-      context.pop();
+    final router = GoRouter.of(context);
+    AppLog.add('ring', 'tap $_id');
+    final stopped = await ref.read(alarmServiceProvider).stop(_id);
+    AppLog.add('ring', 'stop $_id ok=$stopped');
+    // Close the page before running [action]: on a locked screen the app is
+    // paused right after the alarm stops, and the action's native calls may
+    // stall, which would leave this page on the stack for the next launch.
+    // Cleared now rather than in dispose, which waits for the pop animation:
+    // an alarm ringing meanwhile must not replace whatever is underneath.
+    if (RingView.openId == _id) RingView.openId = null;
+    final canPop = router.canPop();
+    if (canPop) {
+      router.pop();
     } else {
-      context.go(Paths.LANDING);
+      router.go(Paths.LANDING);
     }
+    AppLog.add('ring', 'closed $_id pop=$canPop');
+    String? message;
+    try {
+      message = await action();
+    } catch (e) {
+      AppLog.add('ring', 'action failed $_id: $e');
+    }
+    AppLog.add('ring', 'done $_id');
     if (message != null) {
       messenger.showSnackBar(SnackBar(content: Text(message)));
     }

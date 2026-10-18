@@ -68,4 +68,13 @@ void main() {
       isNull,
     );
   });
+
+  test('band times survive a round trip', () {
+    final band = entry
+        .withBedtime(DateTime(2026, 10, 11, 0, 55), source: BedtimeSource.band)
+        .withWakeUp(DateTime(2026, 10, 11, 7, 5), source: BedtimeSource.band);
+    final restored = SleepLogEntry.fromJson(band.toJson());
+    expect(restored.source, BedtimeSource.band);
+    expect(restored.wakeUpSource, BedtimeSource.band);
+  });
 }

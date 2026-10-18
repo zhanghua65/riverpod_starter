@@ -17,6 +17,19 @@ class FakeAlarmService extends AlarmService {
     return true;
   }
 
+  /// Like the real one, leaves alarms with unchanged settings alone.
+  @override
+  Future<bool> scheduleChains(List<AlarmChain> chains) async {
+    for (final chain in chains) {
+      for (final s in chain.toAlarmSettings()) {
+        if (alarms[s.id] == s) continue;
+        scheduleCalls++;
+        alarms[s.id] = s;
+      }
+    }
+    return true;
+  }
+
   @override
   Future<bool> schedule(AlarmSettings settings) async {
     scheduleCalls++;

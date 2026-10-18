@@ -43,6 +43,8 @@ class AppLog {
       if (dir == null) return;
       final maker = await _channel.invokeMethod<String>('manufacturer') ?? '';
       _header = 'device=$maker os=${Platform.operatingSystemVersion}';
+      final build = await _channel.invokeMethod<String>('buildInfo');
+      if (build != null) add('app', 'build $build');
       _file = File('$dir/$fileName');
       _pending = _pending.then((_) => _writeFile()).catchError((_) {});
     } catch (_) {}
