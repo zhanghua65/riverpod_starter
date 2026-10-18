@@ -1,1 +1,1 @@
-enum MenuCode { RHYTHM, HOME, FAVORITE, SETTINGS }
+enum MenuCode { RHYTHM, SETTINGS }

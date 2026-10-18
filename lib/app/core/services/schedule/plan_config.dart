@@ -1,4 +1,5 @@
 import '/app/core/services/alarm/alarm_chain.dart';
+import 'rhythm_settings.dart';
 import 'stepping_plan.dart';
 
 /// What the user entered for a stepping plan, plus the night it starts on.
@@ -12,6 +13,7 @@ class PlanConfig {
     required this.targetBedtime,
     required this.targetWakeUp,
     required this.firstNight,
+    this.settings = const RhythmSettings(),
   });
 
   final ClockTime currentBedtime;
@@ -19,6 +21,7 @@ class PlanConfig {
   final ClockTime targetBedtime;
   final ClockTime targetWakeUp;
   final DateTime firstNight;
+  final RhythmSettings settings;
 
   /// One chain per transition night; the last one is on target.
   List<AlarmChain> get transition => SteppingPlan.build(
@@ -27,6 +30,9 @@ class PlanConfig {
     targetBedtime: targetBedtime,
     targetWakeUp: targetWakeUp,
     firstNight: firstNight,
+    maxStepMinutes: settings.maxStepMinutes,
+    maxDays: settings.maxDays,
+    windDownLead: settings.windDownLead,
   );
 
   /// The chain for [night]: a transition night while the plan runs, the
@@ -42,6 +48,7 @@ class PlanConfig {
       targetBedtime: targetBedtime,
       targetWakeUp: targetWakeUp,
       firstNight: night,
+      windDownLead: settings.windDownLead,
     ).single;
   }
 
@@ -70,6 +77,16 @@ class PlanConfig {
     targetBedtime: targetBedtime,
     targetWakeUp: targetWakeUp,
     firstNight: DateTime(night.year, night.month, night.day),
+    settings: settings,
+  );
+
+  PlanConfig withSettings(RhythmSettings settings) => PlanConfig(
+    currentBedtime: currentBedtime,
+    currentWakeUp: currentWakeUp,
+    targetBedtime: targetBedtime,
+    targetWakeUp: targetWakeUp,
+    firstNight: firstNight,
+    settings: settings,
   );
 
   Map<String, Object> toJson() => {
@@ -78,6 +95,7 @@ class PlanConfig {
     'targetBedtime': targetBedtime.minutes,
     'targetWakeUp': targetWakeUp.minutes,
     'firstNight': firstNight.toIso8601String(),
+    'settings': settings.toJson(),
   };
 
   factory PlanConfig.fromJson(Map<String, dynamic> json) => PlanConfig(
@@ -86,6 +104,9 @@ class PlanConfig {
     targetBedtime: ClockTime.fromMinutes(json['targetBedtime'] as int),
     targetWakeUp: ClockTime.fromMinutes(json['targetWakeUp'] as int),
     firstNight: DateTime.parse(json['firstNight'] as String),
+    settings: json['settings'] is Map<String, dynamic>
+        ? RhythmSettings.fromJson(json['settings'] as Map<String, dynamic>)
+        : const RhythmSettings(),
   );
 
   static int _daysBetween(DateTime from, DateTime to) => DateTime.utc(

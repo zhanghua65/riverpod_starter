@@ -12,8 +12,7 @@ Future<void> main() async {
   await AlarmService.init();
 
   EnvConfig prodConfig = EnvConfig(
-    appName: "Flutter GetX Template Prod",
-    baseUrl: "https://api.github.com",
+    appName: "RhythmCompass",
     shouldCollectCrashLog: true,
   );
 

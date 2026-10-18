@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/app/core/base/base_view.dart';
 import '/app/core/di/controller_provider.dart';
-import '/app/modules/favourite/views/favourite_view.dart';
-import '/app/modules/home/views/home_view.dart';
 import '/app/modules/landing/controllers/landing_controller.dart';
 import '/app/modules/landing/ui_model/menu_code.dart';
 import '/app/modules/landing/views/bottom_nav_bar.dart';
@@ -44,22 +42,12 @@ class LandingView extends BaseView<LandingController> {
     });
   }
 
-  final HomeView homeView = HomeView();
-  FavouriteView? favoriteView;
-  SettingsView? settingsView;
-
   Widget _getPageOnSelectedMenu(MenuCode menuCode) {
     switch (menuCode) {
       case MenuCode.RHYTHM:
         return const RhythmView();
-      case MenuCode.HOME:
-        return homeView;
-      case MenuCode.FAVORITE:
-        favoriteView ??= FavouriteView();
-        return favoriteView!;
       case MenuCode.SETTINGS:
-        settingsView ??= SettingsView();
-        return settingsView!;
+        return const SettingsView();
     }
   }
 

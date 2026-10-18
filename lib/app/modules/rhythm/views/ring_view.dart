@@ -88,9 +88,8 @@ class _RingViewState extends ConsumerState<RingView> {
             ?.chainFor(_night)
             ?.bedtime;
         final left = bedtime?.difference(DateTime.now()).inMinutes;
-        return left != null && left > 0
-            ? '离熄灯还有 $left 分钟。关掉短视频，洗漱，把灯调暗。'
-            : '关掉短视频，洗漱，把灯调暗。';
+        final steps = '1. 退出短视频，把手机放到床外\n2. 洗漱、上厕所\n3. 把灯调暗';
+        return left != null && left > 0 ? '离熄灯还有 $left 分钟\n\n$steps' : steps;
       case AlarmStage.bedtime:
         return '关灯躺下。躺下后点“我已躺下”，晚了也没关系，明天会自动调整。';
       case AlarmStage.wakeUp:

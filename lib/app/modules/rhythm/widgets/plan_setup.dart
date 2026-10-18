@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/schedule/plan_config.dart';
+import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/core/services/schedule/stepping_plan.dart';
 import '/app/core/utils/wake_time_recommender.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
@@ -8,9 +9,15 @@ import '/app/modules/rhythm/widgets/time_format.dart';
 /// Lets the user enter the current and target schedule and previews the
 /// stepping plan before it is applied.
 class PlanSetup extends StatefulWidget {
-  const PlanSetup({required this.onApply, this.initial, this.onCancel});
+  const PlanSetup({
+    required this.onApply,
+    required this.settings,
+    this.initial,
+    this.onCancel,
+  });
 
   final PlanConfig? initial;
+  final RhythmSettings settings;
   final Future<void> Function(PlanConfig plan) onApply;
   final VoidCallback? onCancel;
 
@@ -48,6 +55,7 @@ class _PlanSetupState extends State<PlanSetup> {
       targetBedtime: _targetBedtime,
       targetWakeUp: _targetWakeUp,
       firstNight: DateTime(today.year, today.month, today.day),
+      settings: widget.settings,
     );
     try {
       _plan = config.transition;
@@ -88,7 +96,10 @@ class _PlanSetupState extends State<PlanSetup> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        const Text('每晚最多提前 30 分钟，最后一晚到达目标；之后每天按目标作息提醒。'),
+        Text(
+          '每晚最多提前 ${widget.settings.maxStepMinutes} 分钟，最后一晚到达目标；'
+          '之后每天按目标作息提醒。',
+        ),
         _timeTile('现在几点睡', _currentBedtime, (t) => _currentBedtime = t),
         _timeTile('现在几点起', _currentWakeUp, (t) => _currentWakeUp = t),
         _timeTile('目标就寝', _targetBedtime, (t) {

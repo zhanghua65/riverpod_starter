@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '/app/core/services/app_service.dart';
 import '/app/core/values/app_colors.dart';
 import '/app/core/values/app_values.dart';
 import '/app/modules/landing/providers/landing_provider.dart';
 import '/app/modules/landing/ui_model/menu_code.dart';
-import '/l10n/app_localizations.dart';
 import '/app/modules/landing/ui_model/menu_item.dart';
 
 class BottomNavBar extends ConsumerWidget {
@@ -64,8 +62,6 @@ class BottomNavBar extends ConsumerWidget {
   }
 
   List<BottomNavItem> _getNavItems() {
-    final AppLocalizations appLocalization = AppLocalizations.of(AppService.context)!;
-
     return [
       BottomNavItem(
         navTitle: "作息",
@@ -73,17 +69,7 @@ class BottomNavBar extends ConsumerWidget {
         menuCode: MenuCode.RHYTHM,
       ),
       BottomNavItem(
-        navTitle: appLocalization.bottomNavHome,
-        iconSvgName: "ic_home.svg",
-        menuCode: MenuCode.HOME,
-      ),
-      BottomNavItem(
-        navTitle: appLocalization.bottomNavFavorite,
-        iconSvgName: "ic_favorite.svg",
-        menuCode: MenuCode.FAVORITE,
-      ),
-      BottomNavItem(
-        navTitle: appLocalization.bottomNavSettings,
+        navTitle: "设置",
         iconSvgName: "ic_settings.svg",
         menuCode: MenuCode.SETTINGS,
       )

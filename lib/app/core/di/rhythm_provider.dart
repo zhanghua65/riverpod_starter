@@ -5,15 +5,22 @@ import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/alarm/alarm_stage.dart';
 import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
+import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
 
 class RhythmState {
-  const RhythmState({this.plan, this.log = const []});
+  const RhythmState({
+    this.plan,
+    this.log = const [],
+    this.settings = const RhythmSettings(),
+  });
 
   final PlanConfig? plan;
 
   /// Newest first.
   final List<SleepLogEntry> log;
+
+  final RhythmSettings settings;
 }
 
 final rhythmStoreProvider = FutureProvider<RhythmStore>(
@@ -38,22 +45,37 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     _store = await ref.watch(rhythmStoreProvider.future);
     final plan = _store.loadPlan();
     if (plan != null) await _sync(plan);
-    return RhythmState(plan: plan, log: _store.loadLog());
+    return _stateOf(plan, _store.loadLog());
   }
+
+  RhythmState _stateOf(PlanConfig? plan, List<SleepLogEntry> log) =>
+      RhythmState(plan: plan, log: log, settings: _store.loadSettings());
 
   /// Saves [plan] and replaces every registered alarm with it.
   Future<bool> applyPlan(PlanConfig plan) async {
     await _store.savePlan(plan);
     await ref.read(alarmServiceProvider).stopAll();
     final ok = await _sync(plan);
-    state = AsyncData(RhythmState(plan: plan, log: _store.loadLog()));
+    state = AsyncData(_stateOf(plan, _store.loadLog()));
     return ok;
+  }
+
+  /// Saves [settings]. A running plan is rebuilt with them and its alarms
+  /// are registered again.
+  Future<void> updateSettings(RhythmSettings settings) async {
+    await _store.saveSettings(settings);
+    final plan = (await future).plan;
+    if (plan == null) {
+      state = AsyncData(_stateOf(null, _store.loadLog()));
+      return;
+    }
+    await applyPlan(plan.withSettings(settings));
   }
 
   Future<void> clearPlan() async {
     await _store.savePlan(null);
     await ref.read(alarmServiceProvider).stopAll();
-    state = AsyncData(RhythmState(log: _store.loadLog()));
+    state = AsyncData(_stateOf(null, _store.loadLog()));
   }
 
   /// Records that the user went to bed on [night] at [at] and, if that was
@@ -81,7 +103,7 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     );
     final replan = recovery.replan;
     if (replan == null) {
-      state = AsyncData(RhythmState(plan: plan, log: log));
+      state = AsyncData(_stateOf(plan, log));
       return recovery;
     }
 
@@ -101,7 +123,7 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     }
     await _store.savePlan(replan);
     await _sync(replan);
-    state = AsyncData(RhythmState(plan: replan, log: log));
+    state = AsyncData(_stateOf(replan, log));
     return recovery;
   }
 

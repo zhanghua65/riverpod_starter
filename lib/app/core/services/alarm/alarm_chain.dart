@@ -84,7 +84,7 @@ class AlarmChain {
       AlarmSettings(
         id: idFor(night, stage),
         dateTime: time,
-        assetAudioPath: null, // device default alarm sound
+        assetAudioPath: stage.audioAsset,
         loopAudio: stage.loopAudio,
         vibrate: true,
         volumeSettings: stage.volumeSettings,

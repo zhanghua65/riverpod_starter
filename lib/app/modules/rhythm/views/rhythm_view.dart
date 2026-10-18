@@ -38,6 +38,7 @@ class _RhythmViewState extends ConsumerState<RhythmView> {
               if (plan == null || _editing)
                 PlanSetup(
                   initial: plan,
+                  settings: state.settings,
                   onApply: _apply,
                   onCancel: plan == null
                       ? null

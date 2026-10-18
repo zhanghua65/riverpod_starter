@@ -49,6 +49,11 @@ enum AlarmStage {
   final String title;
   final String body;
 
+  /// Soft chime for the reminders, a longer rising one for waking up.
+  String get audioAsset => loopAudio
+      ? 'assets/audio/wake.wav'
+      : 'assets/audio/reminder.wav';
+
   /// Reminder stages ring the sound once; only the wake-up keeps ringing
   /// until the user stops it.
   final bool loopAudio;

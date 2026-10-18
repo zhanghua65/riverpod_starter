@@ -3,14 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import '/flavors/build_config.dart';
 import '/app/core/ui_model/page_state.dart';
-import '/app/network/exceptions/api_exception.dart';
-import '/app/network/exceptions/app_exception.dart';
-import '/app/network/exceptions/json_format_exception.dart';
-import '/app/network/exceptions/network_exception.dart';
-import '/app/network/exceptions/not_found_exception.dart';
-import '/app/network/exceptions/service_unavailable_exception.dart';
-import '/app/network/exceptions/timeout_exception.dart';
-import '/app/network/exceptions/unauthorize_exception.dart';
 
 abstract class BaseController extends ChangeNotifier {
   final Logger logger = BuildConfig.instance.config.logger;
@@ -67,75 +59,6 @@ abstract class BaseController extends ChangeNotifier {
     _messageController = "";
     _errorMessageController = "";
     _successMessageController = "";
-  }
-
-
-//ignore: long-method
-  dynamic callDataService<T>(
-      Future<T> future, {
-        Function(Exception exception)? onError,
-        Function(T response)? onSuccess,
-        Function? onStart,
-        Function? onComplete,
-      }) async {
-    resetPageMessage();
-    Exception? tempException;
-
-    onStart == null ? showPageLoading() : onStart();
-
-    try {
-      final T response = await future;
-
-      if (onSuccess != null) onSuccess(response);
-
-      if(onComplete!=null){
-        hideLoading();
-        onComplete();
-      } else {
-        hideLoading();
-      }
-
-      return response;
-    } on ServiceUnavailableException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } on UnauthorizedException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } on TimeoutException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } on NetworkException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } on JsonFormatException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } on NotFoundException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } on ApiException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } on AppException catch (exception) {
-      tempException = exception;
-      showErrorMessage(exception.message);
-    } catch (error) {
-      tempException = AppException(message: "$error");
-      logger.e("Controller>>>>>> error $error");
-    }
-
-    if (onError != null){
-      hideLoading();
-      onError(tempException);
-    }
-
-    if(onComplete!=null){
-      hideLoading();
-      onComplete();
-    } else{
-      hideLoading();
-    }
   }
 
 

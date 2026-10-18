@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'plan_config.dart';
+import 'rhythm_settings.dart';
 
 /// One night in the sleep log: when the user planned to and actually went
 /// to bed.
@@ -41,6 +42,7 @@ class RhythmStore {
 
   static const _planKey = 'rhythm.plan';
   static const _logKey = 'rhythm.log';
+  static const _settingsKey = 'rhythm.settings';
 
   /// Older entries are dropped beyond this many nights.
   static const maxLogEntries = 30;
@@ -54,6 +56,15 @@ class RhythmStore {
   Future<void> savePlan(PlanConfig? plan) => plan == null
       ? _prefs.remove(_planKey)
       : _prefs.setString(_planKey, jsonEncode(plan.toJson()));
+
+  RhythmSettings loadSettings() {
+    final raw = _prefs.getString(_settingsKey);
+    if (raw == null) return const RhythmSettings();
+    return RhythmSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveSettings(RhythmSettings settings) =>
+      _prefs.setString(_settingsKey, jsonEncode(settings.toJson()));
 
   /// Newest first.
   List<SleepLogEntry> loadLog() {

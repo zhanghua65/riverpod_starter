@@ -1,7 +1,15 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
-  exclude: [ ios/**, android/**, test/** ]
+  exclude:
+    - ios/**
+    - android/**
+    - test/**
+    - build/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
   errors:
     empty_constructor_bodies: error

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '/l10n/app_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '/app/core/values/app_colors.dart';
 import '/app/modules/rhythm/widgets/alarm_ring_listener.dart';
@@ -16,7 +16,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: _envConfig.appName,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       supportedLocales: _getSupportedLocal(),
       //debugShowCheckedModeBanner: true,
       routerDelegate: AppPages.router.routerDelegate,
@@ -44,8 +48,7 @@ class MyApp extends StatelessWidget {
 
   List<Locale> _getSupportedLocal() {
     return [
-      const Locale('en', ''),
-      const Locale('bn', ''),
+      const Locale('zh', 'CN'),
     ];
   }
 }

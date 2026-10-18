@@ -29,14 +29,13 @@ class Recovery {
   /// ...but never more than this past the planned wake-up.
   static const maxWakeDelay = Duration(minutes: 60);
 
-  static const napTime = ClockTime(13, 0);
   static const napLength = Duration(minutes: 20);
 
   /// Works out the recovery for [planned] when the user actually went to bed
   /// at [actualBedtime].
   ///
   /// - Wake-up: postponed to give [minSleep], capped at [maxWakeDelay].
-  /// - Nap capsule: offered at [napTime] on the wake-up day.
+  /// - Nap capsule: offered at the configured nap time on the wake-up day.
   /// - Re-plan: the plan restarts the next night from the actual bedtime and
   ///   wake-up, stepping toward the same targets.
   static Recovery after({
@@ -56,8 +55,8 @@ class Recovery {
       wakeUp.year,
       wakeUp.month,
       wakeUp.day,
-      napTime.hour,
-      napTime.minute,
+      config.settings.napTime.hour,
+      config.settings.napTime.minute,
     );
 
     final night = planned.night;

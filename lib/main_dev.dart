@@ -13,8 +13,7 @@ Future<void> main() async {
   await AlarmService.init();
 
   EnvConfig devConfig = EnvConfig(
-    appName: "Flutter Riverpod Template Dev",
-    baseUrl: "https://api.github.com",
+    appName: "RhythmCompass Dev",
     shouldCollectCrashLog: true,
   );
 

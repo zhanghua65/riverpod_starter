@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '/l10n/app_localizations.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:logger/logger.dart';
 import '/app/core/base/base_controller.dart';
 import '/app/core/ui_model/page_state.dart';
-import '/app/core/services/app_service.dart';
 import '/app/core/values/app_colors.dart';
 import '/app/core/widget/loading.dart';
 import '/flavors/build_config.dart';
@@ -15,8 +12,6 @@ abstract class BaseView<T extends BaseController> extends StatelessWidget {
   BaseView({Key? key}) : super(key: key);
 
   final GlobalKey<ScaffoldState> globalKey = GlobalKey<ScaffoldState>();
-
-  AppLocalizations get appLocalization => AppLocalizations.of(AppService.context)!;
 
   final Logger logger = BuildConfig.instance.config.logger;
 
@@ -95,11 +90,6 @@ abstract class BaseView<T extends BaseController> extends StatelessWidget {
     });
 
     return Container();
-  }
-
-  void showToast(String message) {
-    Fluttertoast.showToast(
-        msg: message, toastLength: Toast.LENGTH_SHORT, timeInSecForIosWeb: 1);
   }
 
   Color pageBackgroundColor() {
