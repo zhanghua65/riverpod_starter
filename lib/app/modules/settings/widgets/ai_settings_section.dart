@@ -53,6 +53,7 @@ class _AiSettingsSectionState extends ConsumerState<AiSettingsSection> {
           decoration: const InputDecoration(
             labelText: '服务地址',
             hintText: 'https://api.openai.com/v1',
+            helperText: '局域网服务可填 http://IP:端口/v1，公网服务请用 https',
           ),
         ),
         TextField(
