@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-睡了吗(内部代号 RhythmCompass,原名节律罗盘):本地运行的渐进式作息调节 App,V1.0 只做 Android。产品文档见 `docs/RhythmCompass.md`,改功能前先读它,改完同步更新其中的"V1.0 Android 实现现状"。
+早一点点(内部代号 RhythmCompass,原名节律罗盘):本地运行的渐进式作息调节 App,V1.0 只做 Android。产品文档见 `docs/RhythmCompass.md`,改功能前先读它,改完同步更新其中的"V1.0 Android 实现现状"。
 
 ## 技术栈
 - Flutter 3.41+ / Dart 3,状态管理 Riverpod 2(`flutter_riverpod`),路由 `go_router`

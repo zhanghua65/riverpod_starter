@@ -106,12 +106,12 @@ android {
     flavorDimensions "default"
     productFlavors {
         dev {
-            resValue "string", "app_name", "睡了吗 Dev"
+            resValue "string", "app_name", "早一点点 Dev"
             dimension "default"
             applicationIdSuffix ".dev"
         }
         prod {
-            resValue "string", "app_name", "睡了吗"
+            resValue "string", "app_name", "早一点点"
             dimension "default"
         }
     }
