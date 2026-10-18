@@ -53,6 +53,7 @@ void main() {
         'actual': '00:40',
         'lateMinutes': 100,
         'wokeUp': '07:25',
+        'sleepMinutes': 405,
       });
       expect(noWork.toJson()['work'], isNull);
     });

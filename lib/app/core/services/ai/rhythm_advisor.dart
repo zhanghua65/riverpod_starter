@@ -83,6 +83,8 @@ class AdvisorContext {
             'lateMinutes': e.lateBy.inMinutes,
             if (e.actualWakeUp != null)
               'wokeUp': '${ClockTime.of(e.actualWakeUp!)}',
+            if (e.sleepDuration != null)
+              'sleepMinutes': e.sleepDuration!.inMinutes,
           },
       ],
     };
@@ -338,7 +340,8 @@ class RhythmAdvisor {
       '（10~60）；maxDays（3~14）；windDownLeadMinutes（30~60）；napTime'
       '（"HH:mm"，填了工作作息就省略）；reason（中文，100 字以内，说明依据）。'
       '思路：经常晚睡说明步子太大，可以减小步长、延长过渡期或提前降速；连续按时可以'
-      '保持或稍微加快；目标睡眠 7~9 小时；起床不能晚于 work.latestWakeUp；'
+      '保持或稍微加快；recentNights 里有 sleepMinutes（实际睡眠分钟数）时一并参考，经常不足 6.5 小时'
+      '说明起床太早或入睡太晚；目标睡眠 7~9 小时；起床不能晚于 work.latestWakeUp；'
       '不需要改的字段就省略，都不需要改就只输出 reason。';
 
   static const _adjustPrompt =
