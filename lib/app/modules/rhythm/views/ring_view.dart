@@ -7,6 +7,7 @@ import '/app/core/di/alarm_provider.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/alarm/alarm_stage.dart';
+import '/app/core/utils/app_log.dart';
 import '/app/core/values/app_colors.dart';
 import '/app/modules/rhythm/views/rhythm_view.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
@@ -212,14 +213,20 @@ class _RingViewState extends ConsumerState<RingView> {
   Future<void> _finish(Future<String?> Function() action) async {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    AppLog.add('ring', 'tap $_id');
     await ref.read(alarmServiceProvider).stop(_id);
-    final message = await action();
-    if (!mounted) return;
-    if (context.canPop()) {
-      context.pop();
+    // Close the page before running [action]: on a locked screen the app is
+    // paused right after the alarm stops, and the action's native calls may
+    // stall, which would leave this page on the stack for the next launch.
+    if (router.canPop()) {
+      router.pop();
     } else {
-      context.go(Paths.LANDING);
+      router.go(Paths.LANDING);
     }
+    AppLog.add('ring', 'closed $_id');
+    final message = await action();
+    AppLog.add('ring', 'done $_id');
     if (message != null) {
       messenger.showSnackBar(SnackBar(content: Text(message)));
     }
