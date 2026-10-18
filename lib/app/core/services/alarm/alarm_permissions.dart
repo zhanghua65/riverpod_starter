@@ -4,6 +4,25 @@ import 'package:permission_handler/permission_handler.dart';
 
 Future<bool> openAppSettingsPage() => openAppSettings();
 
+/// What [AlarmPermissions.check] could read; the vendor switches are not here
+/// because Android gives no way to read them.
+class AlarmPermissionReport {
+  const AlarmPermissionReport({
+    required this.notification,
+    required this.exactAlarm,
+    required this.fullScreenIntent,
+    required this.batteryOptimizationIgnored,
+  });
+
+  final bool notification;
+  final bool exactAlarm;
+  final bool fullScreenIntent;
+  final bool batteryOptimizationIgnored;
+
+  bool get allGranted =>
+      notification && exactAlarm && fullScreenIntent && batteryOptimizationIgnored;
+}
+
 /// Runtime permissions the alarm chain needs on Android.
 ///
 /// Manifest declarations alone are not enough: Android 13+ asks the user for
@@ -27,6 +46,41 @@ abstract class AlarmPermissions {
     if (!Alarm.android) return true;
     return await Permission.notification.isGranted &&
         await Permission.scheduleExactAlarm.isGranted;
+  }
+
+  /// Reads every status that can be read, without prompting.
+  static Future<AlarmPermissionReport> check() async {
+    if (!Alarm.android) {
+      return const AlarmPermissionReport(
+        notification: true,
+        exactAlarm: true,
+        fullScreenIntent: true,
+        batteryOptimizationIgnored: true,
+      );
+    }
+    return AlarmPermissionReport(
+      notification: await Permission.notification.isGranted,
+      exactAlarm: await Permission.scheduleExactAlarm.isGranted,
+      fullScreenIntent: await fullScreenIntentAllowed(),
+      batteryOptimizationIgnored: await batteryOptimizationIgnored(),
+    );
+  }
+
+  /// Asks for notifications; once denied for good the system shows no
+  /// dialog, so this sends the user to the app settings instead.
+  static Future<bool> requestNotification() => _requestOrOpenSettings(
+    Permission.notification,
+  );
+
+  /// Same as [requestNotification] for exact alarms.
+  static Future<bool> requestExactAlarm() => _requestOrOpenSettings(
+    Permission.scheduleExactAlarm,
+  );
+
+  static Future<bool> _requestOrOpenSettings(Permission permission) async {
+    if (await _request(permission)) return true;
+    await openAppSettings();
+    return false;
   }
 
   /// Opens this app's page in the system settings, where ROM-specific
