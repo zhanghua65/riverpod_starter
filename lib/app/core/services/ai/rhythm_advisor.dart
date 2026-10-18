@@ -325,7 +325,7 @@ class RhythmAdvisor {
       ]);
 
   static const _intro =
-      '你是「节律罗盘」App 里的作息顾问。App 用渐进式计划把用户的作息调到目标：'
+      '你是「睡了吗」App 里的作息顾问。App 用渐进式计划把用户的作息调到目标：'
       '每晚最多提前 maxStepMinutes 分钟，过渡期最多 maxDays 晚；每晚有降速准备、'
       '熄灯躺平、起床三段闹钟，降速准备在熄灯前 windDownLeadMinutes 分钟；'
       '晚睡超过 15 分钟算破戒，第二天会顺延起床、安排 20 分钟午休胶囊，并从实际入睡'

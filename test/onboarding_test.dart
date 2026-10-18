@@ -16,7 +16,7 @@ void main() {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    expect(find.text('欢迎使用节律罗盘'), findsOneWidget);
+    expect(find.text('欢迎使用睡了吗'), findsOneWidget);
     expect(find.text('主页'), findsNothing);
 
     await tester.tap(find.text('下一步'));

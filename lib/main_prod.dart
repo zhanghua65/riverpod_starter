@@ -12,7 +12,7 @@ Future<void> main() async {
   await AlarmService.init();
 
   EnvConfig prodConfig = EnvConfig(
-    appName: "RhythmCompass",
+    appName: "睡了吗",
     shouldCollectCrashLog: true,
   );
 

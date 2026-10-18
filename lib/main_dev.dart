@@ -14,7 +14,7 @@ Future<void> main() async {
   await AlarmService.init();
 
   EnvConfig devConfig = EnvConfig(
-    appName: "RhythmCompass Dev",
+    appName: "睡了吗 Dev",
     shouldCollectCrashLog: true,
   );
 

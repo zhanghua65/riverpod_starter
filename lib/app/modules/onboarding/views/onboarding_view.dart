@@ -139,7 +139,7 @@ class _OnboardingViewState extends State<OnboardingView>
   );
 
   Widget _intro() => _pageOf(
-    title: '欢迎使用节律罗盘',
+    title: '欢迎使用睡了吗',
     children: const [
       Text('从凌晨睡到 23 点，不用一步到位。每晚只提前 20~30 分钟，几天后自然到达目标。'),
       SizedBox(height: 16),

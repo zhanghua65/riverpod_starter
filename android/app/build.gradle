@@ -106,12 +106,12 @@ android {
     flavorDimensions "default"
     productFlavors {
         dev {
-            resValue "string", "app_name", "Riverpod Starter"
+            resValue "string", "app_name", "睡了吗 Dev"
             dimension "default"
             applicationIdSuffix ".dev"
         }
         prod {
-            resValue "string", "app_name", "Riverpod Starter"
+            resValue "string", "app_name", "睡了吗"
             dimension "default"
         }
     }
