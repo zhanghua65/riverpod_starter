@@ -13,7 +13,8 @@ RhythmCompass(节律罗盘):本地运行的渐进式作息调节 App,V1.0 只做
 - `lib/app/core/services/alarm/`:三段闹钟链(降速、熄灯、起床,外加午休)、闹钟 id 规则、权限
 - `lib/app/core/di/`：Riverpod provider。`rhythm_provider.dart` 里的 `RhythmController` 管计划并保持已注册闹钟同步；`advisor_provider.dart` 管 AI 配置、复盘/临时调整请求和晚睡安慰
 - `lib/app/modules/`:`rhythm`(主页、响铃页、计划设置)、`settings`、`onboarding`、`landing`(底部导航)
-- `android/.../MainActivity.kt`:原生接口(全屏通知权限、小米自启动/省电策略页),channel 名 `rhythm_compass/permissions`
+- `lib/app/core/services/usage/`:读取亮屏/熄屏事件(`ScreenUsage`),推断算法在 `schedule/screen_bedtime.dart`;测试用 `FakeScreenUsage`
+- `android/.../MainActivity.kt`:原生接口(全屏通知权限、小米自启动/省电策略页、使用情况访问权限和熄屏事件),channel 名 `rhythm_compass/permissions`
 - `assets/audio/`:提示音(柔和钟声)
 
 ## 常用命令

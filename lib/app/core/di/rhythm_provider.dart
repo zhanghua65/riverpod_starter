@@ -8,6 +8,8 @@ import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
+import '/app/core/services/schedule/screen_bedtime.dart';
+import '/app/core/services/usage/screen_usage.dart';
 import '/app/core/services/schedule/work_schedule.dart';
 
 class RhythmState {
@@ -32,6 +34,21 @@ class RhythmState {
 final rhythmStoreProvider = FutureProvider<RhythmStore>(
   (ref) async => RhythmStore(await SharedPreferences.getInstance()),
 );
+
+final screenUsageProvider = Provider<ScreenUsage>((ref) => ScreenUsage());
+
+/// A bedtime recorded from the screen-off time, and what it changed.
+class ScreenRecord {
+  const ScreenRecord({
+    required this.night,
+    required this.bedtime,
+    required this.recovery,
+  });
+
+  final DateTime night;
+  final DateTime bedtime;
+  final Recovery recovery;
+}
 
 final rhythmControllerProvider =
     AsyncNotifierProvider<RhythmController, RhythmState>(RhythmController.new);
@@ -162,9 +179,48 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     state = AsyncData(_stateOf(null, _store.loadLog()));
   }
 
+  /// Records last night's bedtime from when the screen went off, if the
+  /// user has not recorded it, last night's wake-up has passed and usage
+  /// access is granted. Null when nothing was recorded.
+  ///
+  /// By then the wake-up has rung, so a late night still books the nap
+  /// capsule and re-plans but no longer postpones the wake-up.
+  Future<ScreenRecord?> recordFromScreen() async {
+    final current = await future;
+    final plan = current.plan;
+    if (plan == null) return null;
+    final now = DateTime.now();
+    final night = DateTime(now.year, now.month, now.day - 1);
+    final planned = plan.chainFor(night);
+    if (planned == null || now.isBefore(planned.wakeUp)) return null;
+    if (current.log.any((e) => e.night == night)) return null;
+
+    final events = await ref
+        .read(screenUsageProvider)
+        .events(
+          ScreenBedtime.windowStart(planned),
+          ScreenBedtime.windowEnd(planned),
+        );
+    if (events == null) return null;
+    final at = ScreenBedtime.infer(planned: planned, events: events, now: now);
+    if (at == null) return null;
+    // Checked again: the user may have recorded it meanwhile.
+    if ((await future).log.any((e) => e.night == night)) return null;
+    final recovery = await confirmBedtime(
+      night,
+      at,
+      source: BedtimeSource.screen,
+    );
+    return ScreenRecord(night: night, bedtime: at, recovery: recovery);
+  }
+
   /// Records that the user went to bed on [night] at [at] and, if that was
   /// late, postpones the wake-up, books a nap capsule and re-plans.
-  Future<Recovery> confirmBedtime(DateTime night, DateTime at) async {
+  Future<Recovery> confirmBedtime(
+    DateTime night,
+    DateTime at, {
+    BedtimeSource source = BedtimeSource.manual,
+  }) async {
     final current = await future;
     final plan = current.plan;
     final planned = plan?.chainFor(night);
@@ -177,6 +233,7 @@ class RhythmController extends AsyncNotifier<RhythmState> {
         night: planned.night,
         plannedBedtime: planned.bedtime,
         actualBedtime: at,
+        source: source,
       ),
     );
 

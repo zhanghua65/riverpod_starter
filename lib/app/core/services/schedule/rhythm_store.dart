@@ -7,6 +7,15 @@ import 'plan_config.dart';
 import 'rhythm_settings.dart';
 import 'work_schedule.dart';
 
+/// How the actual bedtime of a night was recorded.
+enum BedtimeSource {
+  /// The user tapped "我已躺下" or entered it by hand.
+  manual,
+
+  /// Inferred from when the screen went off for the night.
+  screen,
+}
+
 /// One night in the sleep log: when the user planned to and actually went
 /// to bed.
 class SleepLogEntry {
@@ -14,11 +23,13 @@ class SleepLogEntry {
     required this.night,
     required this.plannedBedtime,
     required this.actualBedtime,
+    this.source = BedtimeSource.manual,
   });
 
   final DateTime night;
   final DateTime plannedBedtime;
   final DateTime actualBedtime;
+  final BedtimeSource source;
 
   Duration get lateBy => actualBedtime.difference(plannedBedtime);
 
@@ -26,12 +37,17 @@ class SleepLogEntry {
     'night': night.toIso8601String(),
     'planned': plannedBedtime.toIso8601String(),
     'actual': actualBedtime.toIso8601String(),
+    'source': source.name,
   };
 
   factory SleepLogEntry.fromJson(Map<String, dynamic> json) => SleepLogEntry(
     night: DateTime.parse(json['night'] as String),
     plannedBedtime: DateTime.parse(json['planned'] as String),
     actualBedtime: DateTime.parse(json['actual'] as String),
+    // Entries saved before sources existed were all entered by the user.
+    source: json['source'] == BedtimeSource.screen.name
+        ? BedtimeSource.screen
+        : BedtimeSource.manual,
   );
 }
 

@@ -1,11 +1,15 @@
 package com.blz.flutter.riverpod_starter
 
+import android.app.AppOpsManager
 import android.app.NotificationManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Process
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -44,6 +48,17 @@ class MainActivity : FlutterActivity() {
                                 .putExtra("package_label", applicationInfo.loadLabel(packageManager).toString()),
                         ),
                     )
+                    "hasUsageAccess" -> result.success(hasUsageAccess())
+                    "openUsageAccessSettings" -> {
+                        openUsageAccessSettings()
+                        result.success(null)
+                    }
+                    "screenEvents" -> result.success(
+                        screenEvents(
+                            (call.argument<Number>("from") ?: 0).toLong(),
+                            (call.argument<Number>("to") ?: 0).toLong(),
+                        ),
+                    )
                     else -> result.notImplemented()
                 }
             }
@@ -64,6 +79,47 @@ class MainActivity : FlutterActivity() {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         }
         startActivity(intent)
+    }
+
+    // Usage access is a special app-op the user grants in the system
+    // settings; it lets the app read when the screen turned on and off.
+    private fun hasUsageAccess(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    // Some ROMs ignore the package uri and some reject it, so fall back to
+    // the plain list and then to the app's details page.
+    private fun openUsageAccessSettings() {
+        openFirst(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:$packageName"))) ||
+            openFirst(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) ||
+            openFirst(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+    }
+
+    // Screen on/off events between [from] and [to] (epoch millis). Null when
+    // the system does not record them (before Android 9) or access is denied.
+    private fun screenEvents(from: Long, to: Long): List<Map<String, Any>>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || !hasUsageAccess()) return null
+        val manager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val events = manager.queryEvents(from, to) ?: return null
+        val result = mutableListOf<Map<String, Any>>()
+        val event = UsageEvents.Event()
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            when (event.eventType) {
+                UsageEvents.Event.SCREEN_INTERACTIVE ->
+                    result.add(mapOf("at" to event.timeStamp, "on" to true))
+                UsageEvents.Event.SCREEN_NON_INTERACTIVE ->
+                    result.add(mapOf("at" to event.timeStamp, "on" to false))
+            }
+        }
+        return result
     }
 
     // Vendor settings pages are undocumented and move between ROM versions:

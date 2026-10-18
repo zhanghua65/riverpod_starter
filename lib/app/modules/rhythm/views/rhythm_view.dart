@@ -1,3 +1,4 @@
+import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/app/core/di/advisor_provider.dart';
@@ -23,8 +24,44 @@ class RhythmView extends ConsumerStatefulWidget {
   ConsumerState<RhythmView> createState() => _RhythmViewState();
 }
 
-class _RhythmViewState extends ConsumerState<RhythmView> {
+class _RhythmViewState extends ConsumerState<RhythmView>
+    with WidgetsBindingObserver {
   bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recordFromScreen());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Opened in the morning, or back from granting usage access.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _recordFromScreen();
+  }
+
+  /// Fills in last night from the screen-off time if the user did not.
+  Future<void> _recordFromScreen() async {
+    final record = await ref
+        .read(rhythmControllerProvider.notifier)
+        .recordFromScreen();
+    if (record == null) return;
+    // Best effort; the kind words show up on this page when they arrive.
+    ref
+        .read(comfortProvider.notifier)
+        .requestFor(record.night, record.recovery);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(screenRecordMessage(record))));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +104,7 @@ class _RhythmViewState extends ConsumerState<RhythmView> {
               const _UpcomingAlarms(),
               const _BatteryOptimizationTile(),
               const _FullScreenIntentTile(),
+              const _ScreenUsageTile(),
               const _XiaomiTipTile(),
               const _DebugPanel(),
             ],
@@ -158,6 +196,13 @@ String recoveryMessage(Recovery recovery) {
   return parts.join('，');
 }
 
+String screenRecordMessage(ScreenRecord record) {
+  final off = '昨晚 ${hourMinute(record.bedtime)} 熄屏，已记为入睡时间';
+  final recovery = record.recovery;
+  if (!recovery.isLate) return '$off，按计划入睡，继续保持';
+  return '$off。${recoveryMessage(recovery)}';
+}
+
 class _PlanOverview extends StatelessWidget {
   const _PlanOverview({required this.plan, required this.log});
 
@@ -220,7 +265,8 @@ class _PlanOverview extends StatelessWidget {
             title: Text(monthDay(entry.night)),
             subtitle: Text(
               '计划 ${hourMinute(entry.plannedBedtime)} · '
-              '实际 ${hourMinute(entry.actualBedtime)}',
+              '实际 ${hourMinute(entry.actualBedtime)}'
+              '${entry.source == BedtimeSource.screen ? '（熄屏）' : ''}',
             ),
           ),
       ],
@@ -337,6 +383,60 @@ class _FullScreenIntentTileState extends State<_FullScreenIntentTile>
       title: const Text('允许全屏通知'),
       subtitle: const Text('否则闹钟响铃时锁屏不会亮屏弹出提醒页'),
       onTap: AlarmPermissions.openFullScreenIntentSettings,
+    );
+  }
+}
+
+/// Offers usage access, which lets the app record bedtime from the
+/// screen-off time when the user forgets to tap "我已躺下".
+class _ScreenUsageTile extends ConsumerStatefulWidget {
+  const _ScreenUsageTile();
+
+  @override
+  ConsumerState<_ScreenUsageTile> createState() => _ScreenUsageTileState();
+}
+
+class _ScreenUsageTileState extends ConsumerState<_ScreenUsageTile>
+    with WidgetsBindingObserver {
+  bool? _granted;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Back from the system settings page.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    if (!Alarm.android) return;
+    final granted = await ref.read(screenUsageProvider).hasAccess();
+    if (mounted) setState(() => _granted = granted);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_granted != false) return const SizedBox.shrink();
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.phonelink_lock, color: Colors.orange),
+      title: const Text('自动记录入睡时间'),
+      subtitle: const Text(
+        '在“使用情况访问权限”里允许本应用，就能用每晚最后一次熄屏的时间当作入睡时间，'
+        '忘了点“我已躺下”也能记上。只在本机读取',
+      ),
+      onTap: () => ref.read(screenUsageProvider).openSettings(),
     );
   }
 }

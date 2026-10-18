@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- alarm plugin (https://github.com/gdelataillade/alarm/blob/main/help/INSTALL-ANDROID.md) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
@@ -12,6 +13,8 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <!-- Lets the user exempt the app from battery optimization (some ROMs drop alarms otherwise). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Reads screen on/off times to record bedtime automatically; the user grants it under usage access. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions"/>
     <!-- Only for the optional AI advisor, which calls the endpoint the user enters. -->
     <uses-permission android:name="android.permission.INTERNET"/>
    <application

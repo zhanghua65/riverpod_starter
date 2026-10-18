@@ -5,18 +5,23 @@ import 'package:riverpod_starter/app/core/di/rhythm_provider.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_chain.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_stage.dart';
 import 'package:riverpod_starter/app/core/services/schedule/plan_config.dart';
+import 'package:riverpod_starter/app/core/services/schedule/rhythm_store.dart';
+import 'package:riverpod_starter/app/core/services/schedule/screen_bedtime.dart';
 import 'package:riverpod_starter/app/core/services/schedule/stepping_plan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_alarm_service.dart';
+import 'fake_screen_usage.dart';
 
 void main() {
   late FakeAlarmService alarms;
+  late FakeScreenUsage screen;
   late ProviderContainer container;
 
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final tomorrow = DateTime(now.year, now.month, now.day + 1);
+  final yesterday = DateTime(now.year, now.month, now.day - 1);
 
   PlanConfig onTarget(DateTime firstNight) => PlanConfig(
     currentBedtime: const ClockTime(23, 0),
@@ -29,8 +34,12 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     alarms = FakeAlarmService();
+    screen = FakeScreenUsage();
     container = ProviderContainer(
-      overrides: [alarmServiceProvider.overrideWithValue(alarms)],
+      overrides: [
+        alarmServiceProvider.overrideWithValue(alarms),
+        screenUsageProvider.overrideWithValue(screen),
+      ],
     );
   });
 
@@ -110,5 +119,74 @@ void main() {
     final state = container.read(rhythmControllerProvider).value!;
     expect(state.plan!.firstNight, today);
     expect(state.log, hasLength(1));
+  });
+
+  group('recording last night from the screen', () {
+    // Yesterday 16:00 to today 00:00, so last night's wake-up has always
+    // passed whenever the test runs.
+    PlanConfig afternoon() => PlanConfig(
+      currentBedtime: const ClockTime(16, 0),
+      currentWakeUp: const ClockTime(0, 0),
+      targetBedtime: const ClockTime(16, 0),
+      targetWakeUp: const ClockTime(0, 0),
+      firstNight: DateTime(yesterday.year, yesterday.month, yesterday.day - 1),
+    );
+    DateTime yesterdayAt(int hour, int minute) =>
+        DateTime(yesterday.year, yesterday.month, yesterday.day, hour, minute);
+
+    test('a late screen-off is logged and re-plans', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(afternoon());
+      screen.screenEvents = [
+        ScreenEvent(yesterdayAt(15, 0), on: true),
+        ScreenEvent(yesterdayAt(17, 30), on: false),
+      ];
+
+      final record = await controller().recordFromScreen();
+
+      expect(record!.night, yesterday);
+      expect(record.bedtime, yesterdayAt(17, 30));
+      expect(record.recovery.isLate, isTrue);
+      final state = container.read(rhythmControllerProvider).value!;
+      expect(state.log.single.source, BedtimeSource.screen);
+      expect(state.log.single.actualBedtime, yesterdayAt(17, 30));
+      expect(state.plan!.currentBedtime, const ClockTime(17, 30));
+    });
+
+    test('a night the user already recorded is left alone', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(afternoon());
+      await controller().confirmBedtime(yesterday, yesterdayAt(16, 5));
+      screen.screenEvents = [ScreenEvent(yesterdayAt(17, 30), on: false)];
+
+      expect(await controller().recordFromScreen(), isNull);
+      final state = container.read(rhythmControllerProvider).value!;
+      expect(state.log.single.source, BedtimeSource.manual);
+    });
+
+    test('nothing happens without usage access', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(afternoon());
+
+      expect(await controller().recordFromScreen(), isNull);
+      expect(container.read(rhythmControllerProvider).value!.log, isEmpty);
+    });
+
+    test('nothing happens before last night\'s wake-up', () async {
+      await container.read(rhythmControllerProvider.future);
+      // Last night's wake-up is today at 23:59, still ahead.
+      await controller().applyPlan(
+        PlanConfig(
+          currentBedtime: const ClockTime(22, 0),
+          currentWakeUp: const ClockTime(23, 59),
+          targetBedtime: const ClockTime(22, 0),
+          targetWakeUp: const ClockTime(23, 59),
+          firstNight: yesterday,
+        ),
+      );
+      screen.screenEvents = [ScreenEvent(yesterdayAt(22, 30), on: false)];
+
+      expect(await controller().recordFromScreen(), isNull);
+    }, skip: now.hour == 23 && now.minute == 59);
   });
 }

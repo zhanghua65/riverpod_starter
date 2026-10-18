@@ -127,7 +127,15 @@ class _RingViewState extends ConsumerState<RingView> {
           }),
         ];
       case AlarmStage.wakeUp:
-        return [_primary('我醒了', () async => null)];
+        return [
+          _primary('我醒了', () async {
+            // Fills in last night if "我已躺下" was never tapped.
+            final record = await controller.recordFromScreen();
+            if (record == null) return null;
+            comfort.requestFor(record.night, record.recovery);
+            return screenRecordMessage(record);
+          }),
+        ];
       case AlarmStage.nap:
         return [
           _primary('开始午休 20 分钟', () async {
