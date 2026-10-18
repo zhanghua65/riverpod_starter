@@ -63,6 +63,36 @@ abstract class AlarmPermissions {
   static Future<void> openFullScreenIntentSettings() =>
       _channel.invokeMethod<void>('openFullScreenIntentSettings');
 
+  /// Xiaomi, Redmi and POCO phones (MIUI / HyperOS): swiping the app away in
+  /// recents force-stops it and cancels its alarms unless the app is allowed
+  /// to auto-start and has no battery restriction.
+  static Future<bool> isXiaomi() async {
+    if (!Alarm.android) return false;
+    try {
+      final maker = await _channel.invokeMethod<String>('manufacturer') ?? '';
+      return maker.contains('xiaomi') ||
+          maker.contains('redmi') ||
+          maker.contains('poco');
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  /// Opens the vendor's auto-start page; falls back to the app's settings.
+  static Future<void> openAutoStartSettings() => _openVendorPage(
+    'openAutoStartSettings',
+  );
+
+  /// Opens the vendor's per-app battery strategy page ("无限制").
+  static Future<void> openBatteryStrategySettings() => _openVendorPage(
+    'openBatteryStrategySettings',
+  );
+
+  static Future<void> _openVendorPage(String method) async {
+    final opened = await _channel.invokeMethod<bool>(method) ?? false;
+    if (!opened) await openAppSettings();
+  }
+
   static Future<bool> _request(Permission permission) async {
     var status = await permission.status;
     if (status.isDenied) {

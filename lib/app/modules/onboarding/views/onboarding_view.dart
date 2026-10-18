@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/app/core/services/alarm/alarm_permissions.dart';
+import '/app/modules/rhythm/widgets/keep_alive_steps.dart';
 
 /// First-use guide: what the app does, the permissions the alarms need and
 /// the phone settings that keep them reliable.
@@ -22,6 +23,7 @@ class _OnboardingViewState extends State<OnboardingView>
   bool? _basic;
   bool? _fullScreen;
   bool? _battery;
+  bool _xiaomi = false;
 
   @override
   void initState() {
@@ -47,11 +49,13 @@ class _OnboardingViewState extends State<OnboardingView>
     final basic = await AlarmPermissions.basicGranted();
     final fullScreen = await AlarmPermissions.fullScreenIntentAllowed();
     final battery = await AlarmPermissions.batteryOptimizationIgnored();
+    final xiaomi = await AlarmPermissions.isXiaomi();
     if (!mounted) return;
     setState(() {
       _basic = basic;
       _fullScreen = fullScreen;
       _battery = battery;
+      _xiaomi = xiaomi;
     });
   }
 
@@ -190,6 +194,10 @@ class _OnboardingViewState extends State<OnboardingView>
         title: '不要划掉应用',
         body: '睡前不要从最近任务里清掉本应用，否则部分手机上闹钟会失效。',
       ),
+      if (_xiaomi) ...[
+        const XiaomiKeepAliveSteps(),
+        const SizedBox(height: 8),
+      ],
       const _Step(
         icon: Icons.settings,
         title: '检查手机的后台限制',

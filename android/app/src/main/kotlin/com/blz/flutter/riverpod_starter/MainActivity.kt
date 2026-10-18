@@ -1,6 +1,7 @@
 package com.blz.flutter.riverpod_starter
 
 import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -21,6 +22,28 @@ class MainActivity : FlutterActivity() {
                         openFullScreenIntentSettings()
                         result.success(null)
                     }
+                    "manufacturer" -> result.success(Build.MANUFACTURER.lowercase())
+                    "openAutoStartSettings" -> result.success(
+                        openFirst(
+                            Intent().setComponent(
+                                ComponentName(
+                                    "com.miui.securitycenter",
+                                    "com.miui.permcenter.autostart.AutoStartManagementActivity",
+                                ),
+                            ),
+                        ),
+                    )
+                    "openBatteryStrategySettings" -> result.success(
+                        openFirst(
+                            Intent()
+                                .setClassName(
+                                    "com.miui.powerkeeper",
+                                    "com.miui.powerkeeper.ui.HiddenAppsConfigActivity",
+                                )
+                                .putExtra("package_name", packageName)
+                                .putExtra("package_label", applicationInfo.loadLabel(packageManager).toString()),
+                        ),
+                    )
                     else -> result.notImplemented()
                 }
             }
@@ -41,6 +64,16 @@ class MainActivity : FlutterActivity() {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         }
         startActivity(intent)
+    }
+
+    // Vendor settings pages are undocumented and move between ROM versions:
+    // returns false when the page is missing so the caller can fall back to
+    // the generic app settings.
+    private fun openFirst(intent: Intent): Boolean = try {
+        startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: Exception) {
+        false
     }
 
     companion object {

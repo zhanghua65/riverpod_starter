@@ -8,6 +8,7 @@ import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
 import '/app/core/services/schedule/stepping_plan.dart';
+import '/app/modules/rhythm/widgets/keep_alive_steps.dart';
 import '/app/modules/rhythm/widgets/plan_setup.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
 
@@ -64,6 +65,7 @@ class _RhythmViewState extends ConsumerState<RhythmView> {
               const _UpcomingAlarms(),
               const _BatteryOptimizationTile(),
               const _FullScreenIntentTile(),
+              const _XiaomiTipTile(),
               const _DebugPanel(),
             ],
           );
@@ -327,6 +329,57 @@ class _FullScreenIntentTileState extends State<_FullScreenIntentTile>
       title: const Text('允许全屏通知'),
       subtitle: const Text('否则闹钟响铃时锁屏不会亮屏弹出提醒页'),
       onTap: AlarmPermissions.openFullScreenIntentSettings,
+    );
+  }
+}
+
+/// Reminds Xiaomi users to set up auto-start until they confirm it is done.
+class _XiaomiTipTile extends ConsumerStatefulWidget {
+  const _XiaomiTipTile();
+
+  @override
+  ConsumerState<_XiaomiTipTile> createState() => _XiaomiTipTileState();
+}
+
+class _XiaomiTipTileState extends ConsumerState<_XiaomiTipTile> {
+  bool _xiaomi = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AlarmPermissions.isXiaomi().then((v) {
+      if (mounted) setState(() => _xiaomi = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final done = ref.watch(vendorTipProvider).value ?? true;
+    if (!_xiaomi || done) return const SizedBox.shrink();
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '划掉应用后闹钟可能不响',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const XiaomiKeepAliveSteps(),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () =>
+                    ref.read(vendorTipProvider.notifier).setDone(true),
+                child: const Text('我已设置好'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
