@@ -1,6 +1,7 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '/app/core/utils/app_log.dart';
 
 Future<bool> openAppSettingsPage() => openAppSettings();
 
@@ -58,12 +59,19 @@ abstract class AlarmPermissions {
         batteryOptimizationIgnored: true,
       );
     }
-    return AlarmPermissionReport(
+    final report = AlarmPermissionReport(
       notification: await Permission.notification.isGranted,
       exactAlarm: await Permission.scheduleExactAlarm.isGranted,
       fullScreenIntent: await fullScreenIntentAllowed(),
       batteryOptimizationIgnored: await batteryOptimizationIgnored(),
     );
+    AppLog.add(
+      'perm',
+      'notification=${report.notification} exactAlarm=${report.exactAlarm} '
+      'fullScreenIntent=${report.fullScreenIntent} '
+      'batteryIgnored=${report.batteryOptimizationIgnored}',
+    );
+    return report;
   }
 
   /// Asks for notifications; once denied for good the system shows no
@@ -78,7 +86,9 @@ abstract class AlarmPermissions {
   );
 
   static Future<bool> _requestOrOpenSettings(Permission permission) async {
-    if (await _request(permission)) return true;
+    final granted = await _request(permission);
+    AppLog.add('perm', 'request $permission granted=$granted');
+    if (granted) return true;
     await openAppSettings();
     return false;
   }

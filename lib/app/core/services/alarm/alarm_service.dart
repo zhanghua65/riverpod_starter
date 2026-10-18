@@ -1,5 +1,6 @@
 import 'package:alarm/alarm.dart';
 
+import '/app/core/utils/app_log.dart';
 import 'alarm_chain.dart';
 
 /// Registers and cancels alarm chains through the alarm plugin.
@@ -9,14 +10,17 @@ import 'alarm_chain.dart';
 class AlarmService {
   /// Must run once before any other call, after
   /// `WidgetsFlutterBinding.ensureInitialized()`.
-  static Future<void> init() => Alarm.init();
+  static Future<void> init() async {
+    await Alarm.init();
+    AppLog.add('alarm', 'init, ${(await Alarm.getAlarms()).length} registered');
+  }
 
   /// Registers every future stage of [chain]. Stages already in the past are
   /// skipped. Returns false if any registration failed.
   Future<bool> scheduleChain(AlarmChain chain) async {
     var ok = true;
     for (final settings in chain.toAlarmSettings()) {
-      ok = await Alarm.set(alarmSettings: settings) && ok;
+      ok = await schedule(settings) && ok;
     }
     return ok;
   }
@@ -47,8 +51,15 @@ class AlarmService {
     return ok;
   }
 
-  Future<bool> schedule(AlarmSettings settings) =>
-      Alarm.set(alarmSettings: settings);
+  Future<bool> schedule(AlarmSettings settings) async {
+    final ok = await Alarm.set(alarmSettings: settings);
+    AppLog.add(
+      'alarm',
+      'set id=${settings.id} at=${settings.dateTime} '
+      'fullScreen=${settings.androidFullScreenIntent} ok=$ok',
+    );
+    return ok;
+  }
 
   Future<void> cancelChain(AlarmChain chain) async {
     for (final id in chain.ids) {
@@ -56,9 +67,15 @@ class AlarmService {
     }
   }
 
-  Future<bool> stop(int id) => Alarm.stop(id);
+  Future<bool> stop(int id) {
+    AppLog.add('alarm', 'stop id=$id');
+    return Alarm.stop(id);
+  }
 
-  Future<void> stopAll() => Alarm.stopAll();
+  Future<void> stopAll() {
+    AppLog.add('alarm', 'stopAll');
+    return Alarm.stopAll();
+  }
 
   Future<List<AlarmSettings>> getAlarms() => Alarm.getAlarms();
 }

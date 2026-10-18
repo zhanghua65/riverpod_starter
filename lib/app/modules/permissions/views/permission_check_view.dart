@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '/app/core/utils/app_log.dart';
 import '/app/core/services/alarm/alarm_permissions.dart';
 
 /// Lists what the alarm chain needs and whether the phone grants it.
@@ -18,6 +20,7 @@ class _PermissionCheckViewState extends State<PermissionCheckView>
     with WidgetsBindingObserver {
   AlarmPermissionReport? _report;
   bool _xiaomi = false;
+  List<String> _log = const [];
 
   @override
   void initState() {
@@ -43,7 +46,13 @@ class _PermissionCheckViewState extends State<PermissionCheckView>
 
   Future<void> _refresh() async {
     final report = await AlarmPermissions.check();
-    if (mounted) setState(() => _report = report);
+    final log = await AppLog.read();
+    if (mounted) {
+      setState(() {
+        _report = report;
+        _log = log;
+      });
+    }
   }
 
   @override
@@ -134,6 +143,44 @@ class _PermissionCheckViewState extends State<PermissionCheckView>
                     contentPadding: EdgeInsets.zero,
                     title: Text('在最近任务里锁定本应用'),
                     subtitle: Text('锁定后一键清理不会杀掉它，闹钟才不会被取消'),
+                  ),
+                const _Header('诊断日志'),
+                Text(
+                  '记录权限检测、闹钟注册、响铃和应用前后台切换。闹钟没亮屏时，把最近的日志复制给开发者。',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text('复制日志'),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await Clipboard.setData(
+                          ClipboardData(text: _log.join('\n')),
+                        );
+                        messenger.showSnackBar(
+                          const SnackBar(content: Text('已复制日志')),
+                        );
+                      },
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('清空'),
+                      onPressed: () async {
+                        await AppLog.clear();
+                        await _refresh();
+                      },
+                    ),
+                  ],
+                ),
+                if (_log.isEmpty)
+                  const Text('暂无日志')
+                else
+                  SelectableText(
+                    // Newest first, so the latest alarm is at the top.
+                    _log.reversed.take(60).join('\n'),
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
                   ),
                 const SizedBox(height: 8),
                 const Text('全部设置好后，到“作息”页的调试里注册测试闹钟链，锁屏等 1 分钟确认会亮屏。'),
