@@ -64,6 +64,9 @@ class MainActivity : FlutterActivity() {
                                 .putExtra("extra_pkgname", packageName),
                         ),
                     )
+                    // App-specific external dir: no permission needed, and
+                    // `adb pull` can read it.
+                    "logDir" -> result.success(getExternalFilesDir(null)?.absolutePath)
                     "hasUsageAccess" -> result.success(hasUsageAccess())
                     "openUsageAccessSettings" -> {
                         openUsageAccessSettings()

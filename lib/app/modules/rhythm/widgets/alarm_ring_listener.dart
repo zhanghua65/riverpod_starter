@@ -29,6 +29,7 @@ class _AlarmRingListenerState extends ConsumerState<AlarmRingListener>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppLog.enableFile();
     AppLog.add('app', 'launch ${WidgetsBinding.instance.lifecycleState?.name}');
     ref.listenManual<AsyncValue<AlarmSet>>(
       ringingAlarmsProvider,
