@@ -73,7 +73,9 @@ class _AlarmRingListenerState extends ConsumerState<AlarmRingListener>
         // The navigator may not be built yet when the app is launched by
         // the alarm.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          AppLog.add('ring', 'open page ${alarm.id}');
+          final depth =
+              AppPages.router.routerDelegate.currentConfiguration.matches.length;
+          AppLog.add('ring', 'open page ${alarm.id} depth=$depth');
           AppPages.router.push(Paths.RING, extra: alarm);
         });
       }

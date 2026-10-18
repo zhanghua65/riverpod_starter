@@ -36,6 +36,18 @@ class _RingViewState extends ConsumerState<RingView> {
   DateTime get _night => AlarmChain.nightOf(_id);
 
   @override
+  void initState() {
+    super.initState();
+    AppLog.add('ring', 'page shown $_id');
+  }
+
+  @override
+  void dispose() {
+    AppLog.add('ring', 'page disposed $_id');
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final stage = _stage;
     return PopScope(
@@ -215,17 +227,24 @@ class _RingViewState extends ConsumerState<RingView> {
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     AppLog.add('ring', 'tap $_id');
-    await ref.read(alarmServiceProvider).stop(_id);
+    final stopped = await ref.read(alarmServiceProvider).stop(_id);
+    AppLog.add('ring', 'stop $_id ok=$stopped');
     // Close the page before running [action]: on a locked screen the app is
     // paused right after the alarm stops, and the action's native calls may
     // stall, which would leave this page on the stack for the next launch.
-    if (router.canPop()) {
+    final canPop = router.canPop();
+    if (canPop) {
       router.pop();
     } else {
       router.go(Paths.LANDING);
     }
-    AppLog.add('ring', 'closed $_id');
-    final message = await action();
+    AppLog.add('ring', 'closed $_id pop=$canPop');
+    String? message;
+    try {
+      message = await action();
+    } catch (e) {
+      AppLog.add('ring', 'action failed $_id: $e');
+    }
     AppLog.add('ring', 'done $_id');
     if (message != null) {
       messenger.showSnackBar(SnackBar(content: Text(message)));

@@ -1,7 +1,6 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '/app/core/utils/app_log.dart';
 
 Future<bool> openAppSettingsPage() => openAppSettings();
 
@@ -49,7 +48,6 @@ abstract class AlarmPermissions {
         await Permission.scheduleExactAlarm.isGranted;
   }
 
-  static String? _lastLogged;
 
   /// Reads every status that can be read, without prompting.
   static Future<AlarmPermissionReport> check() async {
@@ -67,17 +65,6 @@ abstract class AlarmPermissions {
       fullScreenIntent: await fullScreenIntentAllowed(),
       batteryOptimizationIgnored: await batteryOptimizationIgnored(),
     );
-    // Only what is missing: the AI reading the log needs the problems.
-    final missing = [
-      if (!report.notification) 'notification',
-      if (!report.exactAlarm) 'exactAlarm',
-      if (!report.fullScreenIntent) 'fullScreenIntent',
-      if (!report.batteryOptimizationIgnored) 'batteryOptimization',
-    ].join(',');
-    if (missing != _lastLogged) {
-      _lastLogged = missing;
-      AppLog.add('perm', missing.isEmpty ? 'all granted' : 'missing: $missing');
-    }
     return report;
   }
 
