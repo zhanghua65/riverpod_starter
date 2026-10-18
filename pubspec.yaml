@@ -26,7 +26,7 @@ dependencies:
   font_awesome_flutter: ^11.0.0
   fluttertoast: ^9.1.0
   alarm: ^5.15.0
-  permission_handler: ^13.0.2
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
