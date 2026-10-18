@@ -4,7 +4,7 @@ import '/app/core/base/base_controller.dart';
 import '/app/modules/landing/ui_model/menu_code.dart';
 
 class LandingController extends BaseController {
-  MenuCode bottomNavSelectedMenu = MenuCode.HOME;
+  MenuCode bottomNavSelectedMenu = MenuCode.RHYTHM;
 
   LandingController({
     required Ref<ChangeNotifier> ref,

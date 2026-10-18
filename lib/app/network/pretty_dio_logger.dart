@@ -88,13 +88,13 @@ class PrettyDioLogger extends Interceptor {
   }
 
   @override
-  void onError(DioError err, ErrorInterceptorHandler handler) {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
     if (error) {
-      if (err.type == DioErrorType.response) {
+      if (err.type == DioExceptionType.badResponse) {
         final uri = err.response?.requestOptions.uri;
         _printBoxed(
             header:
-                'DioError ║ Status: ${err.response?.statusCode} ${err.response?.statusMessage}',
+                'DioException ║ Status: ${err.response?.statusCode} ${err.response?.statusMessage}',
             text: uri.toString());
         if (err.response != null && err.response?.data != null) {
           logPrint('╔ ${err.type.toString()}');
@@ -103,7 +103,7 @@ class PrettyDioLogger extends Interceptor {
         _printLine('╚');
         logPrint('');
       } else {
-        _printBoxed(header: 'DioError ║ ${err.type}', text: err.message);
+        _printBoxed(header: 'DioException ║ ${err.type}', text: err.message);
       }
     }
     super.onError(err, handler);

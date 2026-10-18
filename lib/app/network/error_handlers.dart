@@ -17,24 +17,30 @@ Exception handleError(String error) {
   return AppException(message: error);
 }
 
-Exception handleDioError(DioError dioError) {
+Exception handleDioError(DioException dioError) {
   switch (dioError.type) {
-    case DioErrorType.cancel:
+    case DioExceptionType.cancel:
       return AppException(message: "Request to API server was cancelled");
-    case DioErrorType.connectTimeout:
+    case DioExceptionType.connectionTimeout:
       return AppException(message: "Connection timeout with API server");
-    case DioErrorType.other:
+    case DioExceptionType.connectionError:
       return NetworkException("There is no internet connection");
-    case DioErrorType.receiveTimeout:
+    case DioExceptionType.receiveTimeout:
       return TimeoutException("Receive timeout in connection with API server");
-    case DioErrorType.sendTimeout:
+    case DioExceptionType.sendTimeout:
       return TimeoutException("Send timeout in connection with API server");
-    case DioErrorType.response:
+    case DioExceptionType.badResponse:
       return _parseDioErrorResponse(dioError);
+    case DioExceptionType.transformTimeout:
+      return TimeoutException("Response transform timeout");
+    case DioExceptionType.badCertificate:
+      return AppException(message: "Bad certificate from API server");
+    case DioExceptionType.unknown:
+      return AppException(message: dioError.message ?? "Unexpected error");
   }
 }
 
-Exception _parseDioErrorResponse(DioError dioError) {
+Exception _parseDioErrorResponse(DioException dioError) {
   final logger = BuildConfig.instance.config.logger;
 
   int statusCode = dioError.response?.statusCode ?? -1;
