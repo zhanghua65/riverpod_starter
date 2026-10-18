@@ -63,6 +63,7 @@ class _RhythmViewState extends ConsumerState<RhythmView> {
               const Divider(height: 32),
               const _UpcomingAlarms(),
               const _BatteryOptimizationTile(),
+              const _FullScreenIntentTile(),
               const _DebugPanel(),
             ],
           );
@@ -276,6 +277,56 @@ class _BatteryOptimizationTileState extends State<_BatteryOptimizationTile> {
         await AlarmPermissions.requestIgnoreBatteryOptimizations();
         await _refresh();
       },
+    );
+  }
+}
+
+/// Asks for the full-screen notification permission, without which the
+/// screen stays dark when an alarm rings on a locked phone (Android 14+).
+class _FullScreenIntentTile extends StatefulWidget {
+  const _FullScreenIntentTile();
+
+  @override
+  State<_FullScreenIntentTile> createState() => _FullScreenIntentTileState();
+}
+
+class _FullScreenIntentTileState extends State<_FullScreenIntentTile>
+    with WidgetsBindingObserver {
+  bool? _allowed;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Back from the system settings page.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final allowed = await AlarmPermissions.fullScreenIntentAllowed();
+    if (mounted) setState(() => _allowed = allowed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_allowed != false) return const SizedBox.shrink();
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.screen_lock_portrait, color: Colors.orange),
+      title: const Text('允许全屏通知'),
+      subtitle: const Text('否则闹钟响铃时锁屏不会亮屏弹出提醒页'),
+      onTap: AlarmPermissions.openFullScreenIntentSettings,
     );
   }
 }

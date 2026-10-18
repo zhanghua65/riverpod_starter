@@ -1,4 +1,5 @@
 import 'package:alarm/alarm.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Runtime permissions the alarm chain needs on Android.
@@ -28,6 +29,25 @@ abstract class AlarmPermissions {
   /// Shows the system dialog asking to exempt the app.
   static Future<bool> requestIgnoreBatteryOptimizations() =>
       _request(Permission.ignoreBatteryOptimizations);
+
+  static const _channel = MethodChannel('rhythm_compass/permissions');
+
+  /// Android 14+ can withhold the full-screen intent that lights the screen
+  /// and opens the ring page over the lock screen. True when allowed (or not
+  /// on Android).
+  static Future<bool> fullScreenIntentAllowed() async {
+    if (!Alarm.android) return true;
+    try {
+      return await _channel.invokeMethod<bool>('canUseFullScreenIntent') ??
+          true;
+    } on MissingPluginException {
+      return true;
+    }
+  }
+
+  /// Opens the system page where the user allows full-screen notifications.
+  static Future<void> openFullScreenIntentSettings() =>
+      _channel.invokeMethod<void>('openFullScreenIntentSettings');
 
   static Future<bool> _request(Permission permission) async {
     var status = await permission.status;
