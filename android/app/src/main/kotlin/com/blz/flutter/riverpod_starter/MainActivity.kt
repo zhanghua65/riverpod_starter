@@ -54,6 +54,19 @@ class MainActivity : FlutterActivity() {
                                 .putExtra("package_label", applicationInfo.loadLabel(packageManager).toString()),
                         ),
                     )
+                    "openPermissionEditor" -> result.success(
+                        openFirst(
+                            Intent("miui.intent.action.APP_PERM_EDITOR")
+                                .setClassName(
+                                    "com.miui.securitycenter",
+                                    "com.miui.permcenter.permissions.PermissionsEditorActivity",
+                                )
+                                .putExtra("extra_pkgname", packageName),
+                        ),
+                    )
+                    // App-specific external dir: no permission needed, and
+                    // `adb pull` can read it.
+                    "logDir" -> result.success(getExternalFilesDir(null)?.absolutePath)
                     "hasUsageAccess" -> result.success(hasUsageAccess())
                     "openUsageAccessSettings" -> {
                         openUsageAccessSettings()

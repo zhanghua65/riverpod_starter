@@ -3,6 +3,7 @@ abstract class Routes {
 
   static const String LANDING = 'landing';
   static const String RING = 'ring';
+  static const String PERMISSIONS = 'permissions';
 }
 
 abstract class Paths {
@@ -10,4 +11,5 @@ abstract class Paths {
 
   static const String LANDING = '/landing';
   static const String RING = '/ring';
+  static const String PERMISSIONS = '/permissions';
 }

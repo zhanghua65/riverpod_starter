@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '/app/core/di/advisor_provider.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
+import '/app/routes/app_routes.dart';
 import '/app/modules/settings/widgets/ai_settings_section.dart';
 import '/app/modules/settings/widgets/slider_tile.dart';
 import '/app/modules/settings/widgets/work_schedule_section.dart';
@@ -115,12 +117,23 @@ class SettingsView extends ConsumerWidget {
               ],
               const _SectionTitle('其他'),
               Card(
-                child: ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: const Text('重新查看使用引导'),
-                subtitle: const Text('权限、电池优化和锁屏弹出设置'),
-                onTap: () =>
-                    ref.read(onboardingProvider.notifier).setDone(false),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.fact_check_outlined),
+                      title: const Text('权限自检'),
+                      subtitle: const Text('闹钟不亮屏、不响时，检查通知、全屏通知等是否放行'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push(Paths.PERMISSIONS),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.help_outline),
+                      title: const Text('重新查看使用引导'),
+                      subtitle: const Text('权限、电池优化和锁屏弹出设置'),
+                      onTap: () =>
+                          ref.read(onboardingProvider.notifier).setDone(false),
+                    ),
+                  ],
                 ),
               ),
             ],

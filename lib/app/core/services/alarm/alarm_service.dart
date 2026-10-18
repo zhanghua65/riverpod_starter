@@ -1,5 +1,6 @@
 import 'package:alarm/alarm.dart';
 
+import '/app/core/utils/app_log.dart';
 import 'alarm_chain.dart';
 
 /// Registers and cancels alarm chains through the alarm plugin.
@@ -14,10 +15,12 @@ class AlarmService {
   /// Registers every future stage of [chain]. Stages already in the past are
   /// skipped. Returns false if any registration failed.
   Future<bool> scheduleChain(AlarmChain chain) async {
+    final all = chain.toAlarmSettings();
     var ok = true;
-    for (final settings in chain.toAlarmSettings()) {
+    for (final settings in all) {
       ok = await Alarm.set(alarmSettings: settings) && ok;
     }
+    _logSet(all, ok);
     return ok;
   }
 
@@ -28,12 +31,15 @@ class AlarmService {
   Future<bool> scheduleChains(List<AlarmChain> chains) async {
     final existing = {for (final a in await getAlarms()) a.id: a};
     var ok = true;
+    final changed = <AlarmSettings>[];
     for (final chain in chains) {
       for (final settings in chain.toAlarmSettings()) {
         if (existing[settings.id] == settings) continue;
-        ok = await schedule(settings) && ok;
+        ok = await Alarm.set(alarmSettings: settings) && ok;
+        changed.add(settings);
       }
     }
+    _logSet(changed, ok);
     return ok;
   }
 
@@ -47,8 +53,22 @@ class AlarmService {
     return ok;
   }
 
-  Future<bool> schedule(AlarmSettings settings) =>
-      Alarm.set(alarmSettings: settings);
+  Future<bool> schedule(AlarmSettings settings) async {
+    final ok = await Alarm.set(alarmSettings: settings);
+    _logSet([settings], ok);
+    return ok;
+  }
+
+  /// One line per registration batch, not per alarm: a start re-registers
+  /// up to 24 alarms.
+  void _logSet(List<AlarmSettings> set, bool ok) {
+    if (set.isEmpty && ok) return;
+    final times = [for (final s in set) s.dateTime]..sort();
+    AppLog.add(
+      'alarm',
+      'set ${set.length}, next=${times.isEmpty ? '-' : times.first} ok=$ok',
+    );
+  }
 
   Future<void> cancelChain(AlarmChain chain) async {
     for (final id in chain.ids) {

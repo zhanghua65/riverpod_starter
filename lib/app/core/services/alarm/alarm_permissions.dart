@@ -1,8 +1,28 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '/app/core/utils/app_log.dart';
 
 Future<bool> openAppSettingsPage() => openAppSettings();
+
+/// What [AlarmPermissions.check] could read; the vendor switches are not here
+/// because Android gives no way to read them.
+class AlarmPermissionReport {
+  const AlarmPermissionReport({
+    required this.notification,
+    required this.exactAlarm,
+    required this.fullScreenIntent,
+    required this.batteryOptimizationIgnored,
+  });
+
+  final bool notification;
+  final bool exactAlarm;
+  final bool fullScreenIntent;
+  final bool batteryOptimizationIgnored;
+
+  bool get allGranted =>
+      notification && exactAlarm && fullScreenIntent && batteryOptimizationIgnored;
+}
 
 /// Runtime permissions the alarm chain needs on Android.
 ///
@@ -27,6 +47,55 @@ abstract class AlarmPermissions {
     if (!Alarm.android) return true;
     return await Permission.notification.isGranted &&
         await Permission.scheduleExactAlarm.isGranted;
+  }
+
+  static String? _lastLogged;
+
+  /// Reads every status that can be read, without prompting.
+  static Future<AlarmPermissionReport> check() async {
+    if (!Alarm.android) {
+      return const AlarmPermissionReport(
+        notification: true,
+        exactAlarm: true,
+        fullScreenIntent: true,
+        batteryOptimizationIgnored: true,
+      );
+    }
+    final report = AlarmPermissionReport(
+      notification: await Permission.notification.isGranted,
+      exactAlarm: await Permission.scheduleExactAlarm.isGranted,
+      fullScreenIntent: await fullScreenIntentAllowed(),
+      batteryOptimizationIgnored: await batteryOptimizationIgnored(),
+    );
+    // Only what is missing: the AI reading the log needs the problems.
+    final missing = [
+      if (!report.notification) 'notification',
+      if (!report.exactAlarm) 'exactAlarm',
+      if (!report.fullScreenIntent) 'fullScreenIntent',
+      if (!report.batteryOptimizationIgnored) 'batteryOptimization',
+    ].join(',');
+    if (missing != _lastLogged) {
+      _lastLogged = missing;
+      AppLog.add('perm', missing.isEmpty ? 'all granted' : 'missing: $missing');
+    }
+    return report;
+  }
+
+  /// Asks for notifications; once denied for good the system shows no
+  /// dialog, so this sends the user to the app settings instead.
+  static Future<bool> requestNotification() => _requestOrOpenSettings(
+    Permission.notification,
+  );
+
+  /// Same as [requestNotification] for exact alarms.
+  static Future<bool> requestExactAlarm() => _requestOrOpenSettings(
+    Permission.scheduleExactAlarm,
+  );
+
+  static Future<bool> _requestOrOpenSettings(Permission permission) async {
+    if (await _request(permission)) return true;
+    await openAppSettings();
+    return false;
   }
 
   /// Opens this app's page in the system settings, where ROM-specific
@@ -67,14 +136,19 @@ abstract class AlarmPermissions {
   /// recents force-stops it and cancels its alarms unless the app is allowed
   /// to auto-start and has no battery restriction.
   static Future<bool> isXiaomi() async {
-    if (!Alarm.android) return false;
+    final maker = await manufacturer();
+    return maker.contains('xiaomi') ||
+        maker.contains('redmi') ||
+        maker.contains('poco');
+  }
+
+  /// Lower-case manufacturer, or '' off Android.
+  static Future<String> manufacturer() async {
+    if (!Alarm.android) return '';
     try {
-      final maker = await _channel.invokeMethod<String>('manufacturer') ?? '';
-      return maker.contains('xiaomi') ||
-          maker.contains('redmi') ||
-          maker.contains('poco');
+      return await _channel.invokeMethod<String>('manufacturer') ?? '';
     } on MissingPluginException {
-      return false;
+      return '';
     }
   }
 
@@ -86,6 +160,12 @@ abstract class AlarmPermissions {
   /// Opens the vendor's per-app battery strategy page ("无限制").
   static Future<void> openBatteryStrategySettings() => _openVendorPage(
     'openBatteryStrategySettings',
+  );
+
+  /// Opens the vendor's per-app permission list, where "锁屏显示" and
+  /// "后台弹出界面" live. Neither can be read from code, so this only guides.
+  static Future<void> openPermissionEditor() => _openVendorPage(
+    'openPermissionEditor',
   );
 
   static Future<void> _openVendorPage(String method) async {
