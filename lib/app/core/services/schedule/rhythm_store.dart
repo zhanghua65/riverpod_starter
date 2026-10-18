@@ -14,9 +14,6 @@ enum BedtimeSource {
 
   /// Inferred from when the screen went off for the night.
   screen,
-
-  /// From the sleep a band synced to Health Connect.
-  band,
 }
 
 /// One night in the sleep log: when the user planned to and actually went
@@ -40,8 +37,8 @@ class SleepLogEntry {
   /// is known.
   final DateTime? actualWakeUp;
 
-  /// How [actualWakeUp] was recorded: from the morning's screen use, the
-  /// band, or entered by the user.
+  /// How [actualWakeUp] was recorded: from the morning's screen use or
+  /// entered by the user.
   final BedtimeSource wakeUpSource;
 
   SleepLogEntry withWakeUp(
@@ -240,25 +237,6 @@ class RhythmStore {
       _saveLog([
         for (final e in loadLog()) e.night == night ? e.withWakeUp(at) : e,
       ]);
-
-  /// Replaces the logged bedtime and/or wake-up of [night] with the times
-  /// the band recorded. Nothing changes when that night has no entry.
-  Future<List<SleepLogEntry>> setBandTimes(
-    DateTime night, {
-    DateTime? bedtime,
-    DateTime? wakeUp,
-  }) => _saveLog([
-    for (final e in loadLog())
-      if (e.night != night)
-        e
-      else
-        _edited(
-          e,
-          bedtime: bedtime,
-          wakeUp: wakeUp,
-          source: BedtimeSource.band,
-        ),
-  ]);
 
   /// Replaces the logged bedtime and/or wake-up of [night] with times the
   /// user entered. Nothing changes when that night has no entry.

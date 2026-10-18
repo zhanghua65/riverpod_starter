@@ -1,11 +1,8 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/alarm/alarm_permissions.dart';
-import '/app/core/services/usage/health_sleep.dart';
-import '/app/routes/app_routes.dart';
 
 /// What the alarms need from the phone, in one place: the settings the app can
 /// read show a real status, the vendor switches only link to their page.
@@ -24,7 +21,6 @@ class _PermissionChecklistState extends ConsumerState<PermissionChecklist>
     with WidgetsBindingObserver {
   AlarmPermissionReport? _report;
   bool? _usageAccess;
-  HealthSleepStatus? _health;
   bool _xiaomi = false;
 
   @override
@@ -54,14 +50,10 @@ class _PermissionChecklistState extends ConsumerState<PermissionChecklist>
     final usage = Alarm.android
         ? await ref.read(screenUsageProvider).hasAccess()
         : null;
-    final health = Alarm.android
-        ? await ref.read(healthSleepProvider).status()
-        : null;
     if (!mounted) return;
     setState(() {
       _report = report;
       _usageAccess = usage;
-      _health = health;
     });
   }
 
@@ -118,7 +110,6 @@ class _PermissionChecklistState extends ConsumerState<PermissionChecklist>
             ok: _usageAccess!,
             onFix: () => ref.read(screenUsageProvider).openSettings(),
           ),
-        if (_health != null) _bandTile(_health!),
         const _Header('无法自动检测，请手动确认'),
         if (_xiaomi) ...[
           _ManualTile(
@@ -160,59 +151,6 @@ class _PermissionChecklistState extends ConsumerState<PermissionChecklist>
           ),
       ],
     );
-  }
-
-  /// Reading the band's sleep from Health Connect. The band app must also
-  /// sync to Health Connect, which the app cannot check, so the tile links
-  /// there once access is granted.
-  Widget _bandTile(HealthSleepStatus status) {
-    final health = ref.read(healthSleepProvider);
-    const title = '手环睡眠数据（可选）';
-    switch (status) {
-      case HealthSleepStatus.unavailable:
-        return const ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.watch_outlined),
-          title: Text(title),
-          subtitle: Text('本机没有 Health Connect（健康数据共享），无法读取手环数据'),
-        );
-      case HealthSleepStatus.needsUpdate:
-        return _StatusTile(
-          title: title,
-          body: '需要先更新 Health Connect',
-          ok: false,
-          onFix: () async {
-            await health.requestAccess();
-          },
-        );
-      case HealthSleepStatus.denied:
-        return _StatusTile(
-          title: title,
-          body: '允许读取睡眠后，用小米手环记录的入睡和醒来时间代替熄屏推算。只在本机读取',
-          ok: false,
-          onFix: () async {
-            // Health Connect stops showing the dialog after two refusals.
-            if (!await health.requestAccess()) await health.openSettings();
-            await _refresh();
-          },
-        );
-      case HealthSleepStatus.granted:
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.check_circle, color: Colors.green),
-          title: const Text(title),
-          subtitle: const Text(
-            '已允许。还需在小米运动健康（Mi Fitness）里打开“同步到 Health Connect”的睡眠数据，手环同步后才读得到。点此查看已同步的数据',
-          ),
-          onTap: () => context.push(Paths.BAND_SLEEP),
-          trailing: TextButton(
-            onPressed: () async {
-              if (!await health.openBandApp()) await health.openSettings();
-            },
-            child: const Text('去打开同步'),
-          ),
-        );
-    }
   }
 }
 

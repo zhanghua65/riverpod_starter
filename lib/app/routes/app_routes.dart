@@ -4,7 +4,6 @@ abstract class Routes {
   static const String LANDING = 'landing';
   static const String RING = 'ring';
   static const String PERMISSIONS = 'permissions';
-  static const String BAND_SLEEP = 'band-sleep';
   static const String HISTORY = 'history';
 }
 
@@ -14,6 +13,5 @@ abstract class Paths {
   static const String LANDING = '/landing';
   static const String RING = '/ring';
   static const String PERMISSIONS = '/permissions';
-  static const String BAND_SLEEP = '/band-sleep';
   static const String HISTORY = '/history';
 }

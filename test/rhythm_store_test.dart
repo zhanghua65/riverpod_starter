@@ -69,12 +69,13 @@ void main() {
     );
   });
 
-  test('band times survive a round trip', () {
-    final band = entry
-        .withBedtime(DateTime(2026, 10, 11, 0, 55), source: BedtimeSource.band)
-        .withWakeUp(DateTime(2026, 10, 11, 7, 5), source: BedtimeSource.band);
-    final restored = SleepLogEntry.fromJson(band.toJson());
-    expect(restored.source, BedtimeSource.band);
-    expect(restored.wakeUpSource, BedtimeSource.band);
+  test('a source saved by an older build falls back to the defaults', () {
+    final json = entry.toJson()
+      ..['source'] = 'band'
+      ..['wakeUp'] = DateTime(2026, 10, 11, 7, 5).toIso8601String()
+      ..['wakeUpSource'] = 'band';
+    final restored = SleepLogEntry.fromJson(json);
+    expect(restored.source, BedtimeSource.manual);
+    expect(restored.wakeUpSource, BedtimeSource.screen);
   });
 }

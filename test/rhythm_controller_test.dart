@@ -4,7 +4,6 @@ import 'package:riverpod_starter/app/core/di/alarm_provider.dart';
 import 'package:riverpod_starter/app/core/di/rhythm_provider.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_chain.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_stage.dart';
-import 'package:riverpod_starter/app/core/services/schedule/band_sleep.dart';
 import 'package:riverpod_starter/app/core/services/schedule/plan_config.dart';
 import 'package:riverpod_starter/app/core/services/schedule/rhythm_store.dart';
 import 'package:riverpod_starter/app/core/services/schedule/screen_bedtime.dart';
@@ -12,13 +11,11 @@ import 'package:riverpod_starter/app/core/services/schedule/stepping_plan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_alarm_service.dart';
-import 'fake_health_sleep.dart';
 import 'fake_screen_usage.dart';
 
 void main() {
   late FakeAlarmService alarms;
   late FakeScreenUsage screen;
-  late FakeHealthSleep health;
   late ProviderContainer container;
 
   final now = DateTime.now();
@@ -38,12 +35,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     alarms = FakeAlarmService();
     screen = FakeScreenUsage();
-    health = FakeHealthSleep();
     container = ProviderContainer(
       overrides: [
         alarmServiceProvider.overrideWithValue(alarms),
         screenUsageProvider.overrideWithValue(screen),
-        healthSleepProvider.overrideWithValue(health),
       ],
     );
   });
@@ -332,111 +327,5 @@ void main() {
 
       expect(await controller().recordFromScreen(), isNull);
     }, skip: now.hour == 23 && now.minute == 59);
-  });
-
-  group('recording last night from the band', () {
-    // Same plan as above: yesterday 16:00 to today 00:00.
-    PlanConfig afternoon() => PlanConfig(
-      currentBedtime: const ClockTime(16, 0),
-      currentWakeUp: const ClockTime(0, 0),
-      targetBedtime: const ClockTime(16, 0),
-      targetWakeUp: const ClockTime(0, 0),
-      firstNight: DateTime(yesterday.year, yesterday.month, yesterday.day - 1),
-    );
-    DateTime yesterdayAt(int hour, int minute) =>
-        DateTime(yesterday.year, yesterday.month, yesterday.day, hour, minute);
-
-    test('band sleep is logged as bedtime and wake-up and re-plans', () async {
-      await container.read(rhythmControllerProvider.future);
-      await controller().applyPlan(afternoon());
-      health.sleepSessions = [
-        SleepSession(yesterdayAt(17, 30), yesterdayAt(23, 10)),
-      ];
-      // Screen data is there too, but the band wins.
-      screen.screenEvents = [ScreenEvent(yesterdayAt(17, 0), on: false)];
-
-      final record = await controller().recordFromScreen();
-
-      expect(record!.fromBand, isTrue);
-      expect(record.bedtime, yesterdayAt(17, 30));
-      expect(record.recovery!.isLate, isTrue);
-      expect(record.wakeUp, yesterdayAt(23, 10));
-      final state = container.read(rhythmControllerProvider).value!;
-      final entry = state.log.single;
-      expect(entry.source, BedtimeSource.band);
-      expect(entry.actualBedtime, yesterdayAt(17, 30));
-      expect(entry.actualWakeUp, yesterdayAt(23, 10));
-      expect(entry.wakeUpSource, BedtimeSource.band);
-      expect(state.plan!.currentBedtime, const ClockTime(17, 30));
-
-      // Nothing more to fill in.
-      expect(await controller().recordFromScreen(), isNull);
-    });
-
-    test('band data arriving later replaces the screen times', () async {
-      await container.read(rhythmControllerProvider.future);
-      await controller().applyPlan(afternoon());
-      screen.screenEvents = [
-        ScreenEvent(yesterdayAt(15, 0), on: true),
-        ScreenEvent(yesterdayAt(17, 30), on: false),
-      ];
-      await controller().recordFromScreen();
-      final planAfterScreen = container
-          .read(rhythmControllerProvider)
-          .value!
-          .plan;
-
-      health.sleepSessions = [
-        SleepSession(yesterdayAt(17, 50), yesterdayAt(23, 20)),
-      ];
-      final record = await controller().recordFromScreen();
-
-      expect(record!.fromBand, isTrue);
-      expect(record.bedtime, yesterdayAt(17, 50));
-      expect(record.recovery, isNull);
-      final state = container.read(rhythmControllerProvider).value!;
-      final entry = state.log.single;
-      expect(entry.source, BedtimeSource.band);
-      expect(entry.actualBedtime, yesterdayAt(17, 50));
-      expect(entry.actualWakeUp, yesterdayAt(23, 20));
-      // Only the record changed; the screen-off time already re-planned.
-      expect(state.plan!.currentBedtime, planAfterScreen!.currentBedtime);
-    });
-
-    test('band data never replaces what the user entered', () async {
-      await container.read(rhythmControllerProvider.future);
-      await controller().applyPlan(afternoon());
-      await controller().confirmBedtime(yesterday, yesterdayAt(16, 5));
-      health.sleepSessions = [
-        SleepSession(yesterdayAt(16, 40), yesterdayAt(23, 30)),
-      ];
-
-      final record = await controller().recordFromScreen();
-
-      expect(record!.bedtime, isNull);
-      expect(record.wakeUp, yesterdayAt(23, 30));
-      final entry = container.read(rhythmControllerProvider).value!.log.single;
-      expect(entry.source, BedtimeSource.manual);
-      expect(entry.actualBedtime, yesterdayAt(16, 5));
-      expect(entry.wakeUpSource, BedtimeSource.band);
-    });
-
-    test('without band sleep the screen is used', () async {
-      await container.read(rhythmControllerProvider.future);
-      await controller().applyPlan(afternoon());
-      health.sleepSessions = const [];
-      screen.screenEvents = [
-        ScreenEvent(yesterdayAt(15, 0), on: true),
-        ScreenEvent(yesterdayAt(17, 30), on: false),
-      ];
-
-      final record = await controller().recordFromScreen();
-
-      expect(record!.fromBand, isFalse);
-      expect(
-        container.read(rhythmControllerProvider).value!.log.single.source,
-        BedtimeSource.screen,
-      );
-    });
   });
 }

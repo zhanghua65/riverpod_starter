@@ -17,18 +17,6 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions"/>
     <!-- Only for the optional AI advisor, which calls the endpoint the user enters. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Reads the sleep a band app (Mi Fitness) syncs to Health Connect; optional. -->
-    <uses-permission android:name="android.permission.health.READ_SLEEP"/>
-    <queries>
-        <!-- Health Connect as a separate app (Android 13 and older). -->
-        <package android:name="com.google.android.apps.healthdata"/>
-        <!-- Health Connect as a system module (Android 14+), for diagnostics. -->
-        <package android:name="com.google.android.healthconnect.controller"/>
-        <package android:name="com.android.healthconnect.controller"/>
-        <!-- Xiaomi's band apps, opened so the user can turn on syncing. -->
-        <package android:name="com.mi.health"/>
-        <package android:name="com.xiaomi.wearable"/>
-    </queries>
    <application
         android:label="@string/app_name"
         android:name="${applicationName}"
@@ -68,27 +56,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- Health Connect only shows its permission dialog to apps that explain
-             how they use the data: this page on Android 13 and older, the alias
-             on Android 14+. -->
-        <activity
-            android:name=".HealthPermissionsActivity"
-            android:exported="true"
-            android:theme="@android:style/Theme.DeviceDefault.Light">
-            <intent-filter>
-                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
-            </intent-filter>
-        </activity>
-        <activity-alias
-            android:name="ViewPermissionUsageActivity"
-            android:exported="true"
-            android:targetActivity=".HealthPermissionsActivity"
-            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
-                <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>
-            </intent-filter>
-        </activity-alias>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
