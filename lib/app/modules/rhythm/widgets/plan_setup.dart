@@ -94,7 +94,7 @@ class _PlanSetupState extends State<PlanSetup> {
         _timeTile('目标就寝', _targetBedtime, (t) {
           _targetBedtime = t;
           // 就寝时间变化后，起床时间跟随推荐，仍可手动修改。
-          _targetWakeUp = _recommendations().firstWhere((r) => r.isPrimary).$2;
+          _targetWakeUp = _recommendations().firstWhere((r) => r.$1.isPrimary).$2;
         }),
         _timeTile('目标起床', _targetWakeUp, (t) => _targetWakeUp = t),
         Wrap(
