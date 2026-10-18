@@ -5,17 +5,21 @@ import 'package:riverpod_starter/app/core/di/rhythm_provider.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_chain.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_stage.dart';
 import 'package:riverpod_starter/app/core/services/schedule/plan_config.dart';
+import 'package:riverpod_starter/app/core/services/schedule/recall_plan.dart';
+import 'package:riverpod_starter/app/core/services/schedule/rhythm_settings.dart';
 import 'package:riverpod_starter/app/core/services/schedule/rhythm_store.dart';
 import 'package:riverpod_starter/app/core/services/schedule/screen_bedtime.dart';
 import 'package:riverpod_starter/app/core/services/schedule/stepping_plan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_alarm_service.dart';
+import 'fake_recall_notifier.dart';
 import 'fake_screen_usage.dart';
 
 void main() {
   late FakeAlarmService alarms;
   late FakeScreenUsage screen;
+  late FakeRecallNotifier recall;
   late ProviderContainer container;
 
   final now = DateTime.now();
@@ -35,9 +39,11 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     alarms = FakeAlarmService();
     screen = FakeScreenUsage();
+    recall = FakeRecallNotifier();
     container = ProviderContainer(
       overrides: [
         alarmServiceProvider.overrideWithValue(alarms),
+        recallNotifierProvider.overrideWithValue(recall),
         screenUsageProvider.overrideWithValue(screen),
       ],
     );
@@ -59,6 +65,64 @@ void main() {
     expect(nights.reduce((a, b) => a.isBefore(b) ? a : b), tomorrow);
   });
 
+  group('recall notices', () {
+    test('applying a plan books notices around the last alarm', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(onTarget(tomorrow));
+
+      final lastRing = alarms.alarms.values
+          .map((a) => a.dateTime)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+      expect(recall.booked.map((n) => n.id), [
+        RecallPlan.warnId,
+        RecallPlan.lapseId,
+      ]);
+      expect(
+        recall.booked.last.at,
+        lastRing.add(RecallPlan.lapseDelay),
+      );
+      expect(recall.booked.first.at.isBefore(lastRing), isTrue);
+    });
+
+    test('clearing the plan cancels them', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(onTarget(tomorrow));
+      await controller().clearPlan();
+
+      expect(recall.booked, isEmpty);
+    });
+
+    test('turning them off cancels them', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(onTarget(tomorrow));
+      await controller().updateSettings(
+        const RhythmSettings(recallEnabled: false),
+      );
+
+      expect(recall.booked, isEmpty);
+
+      await controller().updateSettings(const RhythmSettings());
+      expect(recall.booked, hasLength(2));
+    });
+
+    test('coming back to the front registers again after a while', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(onTarget(tomorrow));
+      final calls = recall.replaceCalls;
+
+      // Just synced: nothing to do.
+      await controller().refreshAlarms();
+      expect(recall.replaceCalls, calls);
+    });
+
+    test('resuming without a plan does nothing', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().refreshAlarms();
+
+      expect(recall.replaceCalls, 0);
+    });
+  });
+
   test('a restart leaves alarms that are already registered alone', () async {
     await container.read(rhythmControllerProvider.future);
     await controller().applyPlan(onTarget(tomorrow));
@@ -66,7 +130,10 @@ void main() {
     final calls = alarms.scheduleCalls;
 
     final restarted = ProviderContainer(
-      overrides: [alarmServiceProvider.overrideWithValue(alarms)],
+      overrides: [
+        alarmServiceProvider.overrideWithValue(alarms),
+        recallNotifierProvider.overrideWithValue(FakeRecallNotifier()),
+      ],
     );
     addTearDown(restarted.dispose);
     await restarted.read(rhythmControllerProvider.future);
@@ -81,7 +148,10 @@ void main() {
     alarms.alarms.clear();
 
     final restarted = ProviderContainer(
-      overrides: [alarmServiceProvider.overrideWithValue(alarms)],
+      overrides: [
+        alarmServiceProvider.overrideWithValue(alarms),
+        recallNotifierProvider.overrideWithValue(FakeRecallNotifier()),
+      ],
     );
     addTearDown(restarted.dispose);
     final state = await restarted.read(rhythmControllerProvider.future);

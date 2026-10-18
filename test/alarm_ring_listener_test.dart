@@ -16,6 +16,7 @@ import 'package:riverpod_starter/flavors/environment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_alarm_service.dart';
+import 'fake_recall_notifier.dart';
 
 void main() {
   // Off Android, permission requests are skipped (no platform channels).
@@ -38,6 +39,7 @@ void main() {
       ProviderScope(
         overrides: [
           alarmServiceProvider.overrideWithValue(alarms),
+        recallNotifierProvider.overrideWithValue(FakeRecallNotifier()),
           ringingAlarmsProvider.overrideWith((ref) => ringing.stream),
         ],
         child: MaterialApp.router(

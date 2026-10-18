@@ -95,6 +95,13 @@ class SettingsView extends ConsumerWidget {
                   if (picked != null) await update(settings.copyWith(napTime: picked));
                 },
               ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('闹钟快用完时提醒我'),
+                subtitle: const Text('很多天没打开 App 时，在闹钟用完前后发一条通知，点开即可续上'),
+                value: settings.recallEnabled,
+                onChanged: (v) => update(settings.copyWith(recallEnabled: v)),
+              ),
                     ],
                   ),
                 ),

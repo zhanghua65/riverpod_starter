@@ -45,7 +45,10 @@ class _RhythmViewState extends ConsumerState<RhythmView>
   // Opened in the morning, or back from granting usage access.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _recordFromScreen();
+    if (state == AppLifecycleState.resumed) {
+      ref.read(rhythmControllerProvider.notifier).refreshAlarms();
+      _recordFromScreen();
+    }
   }
 
   /// Fills in last night's bedtime and wake-up from the screen's history.

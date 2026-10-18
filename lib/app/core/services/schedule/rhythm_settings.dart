@@ -9,6 +9,7 @@ class RhythmSettings {
     this.maxDays = 7,
     this.windDownLeadMinutes = 45,
     this.napTime = const ClockTime(13, 0),
+    this.recallEnabled = true,
   });
 
   /// Largest shift of bedtime or wake-up from one night to the next.
@@ -23,6 +24,10 @@ class RhythmSettings {
   /// When the nap capsule is offered after a late night.
   final ClockTime napTime;
 
+  /// Whether to remind the user to open the app before the registered
+  /// alarms run out.
+  final bool recallEnabled;
+
   static const stepRange = (min: 10, max: 60);
   static const daysRange = (min: 3, max: 14);
   static const windDownRange = (min: 30, max: 60);
@@ -34,11 +39,13 @@ class RhythmSettings {
     int? maxDays,
     int? windDownLeadMinutes,
     ClockTime? napTime,
+    bool? recallEnabled,
   }) => RhythmSettings(
     maxStepMinutes: maxStepMinutes ?? this.maxStepMinutes,
     maxDays: maxDays ?? this.maxDays,
     windDownLeadMinutes: windDownLeadMinutes ?? this.windDownLeadMinutes,
     napTime: napTime ?? this.napTime,
+    recallEnabled: recallEnabled ?? this.recallEnabled,
   );
 
   Map<String, Object> toJson() => {
@@ -46,6 +53,7 @@ class RhythmSettings {
     'maxDays': maxDays,
     'windDownLeadMinutes': windDownLeadMinutes,
     'napTime': napTime.minutes,
+    'recallEnabled': recallEnabled,
   };
 
   /// Missing or out-of-range values fall back to the defaults.
@@ -68,6 +76,9 @@ class RhythmSettings {
       napTime: nap is int && nap >= 0 && nap < 24 * 60
           ? ClockTime.fromMinutes(nap)
           : d.napTime,
+      recallEnabled: json['recallEnabled'] is bool
+          ? json['recallEnabled'] as bool
+          : d.recallEnabled,
     );
   }
 
@@ -77,9 +88,16 @@ class RhythmSettings {
       other.maxStepMinutes == maxStepMinutes &&
       other.maxDays == maxDays &&
       other.windDownLeadMinutes == windDownLeadMinutes &&
-      other.napTime == napTime;
+      other.napTime == napTime &&
+      other.recallEnabled == recallEnabled;
 
   @override
   int get hashCode =>
-      Object.hash(maxStepMinutes, maxDays, windDownLeadMinutes, napTime);
+      Object.hash(
+        maxStepMinutes,
+        maxDays,
+        windDownLeadMinutes,
+        napTime,
+        recallEnabled,
+      );
 }

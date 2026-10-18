@@ -14,6 +14,7 @@ import 'package:riverpod_starter/app/core/services/schedule/work_schedule.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_alarm_service.dart';
+import 'fake_recall_notifier.dart';
 import 'fake_chat_transport.dart';
 
 void main() {
@@ -49,6 +50,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         alarmServiceProvider.overrideWithValue(alarms),
+        recallNotifierProvider.overrideWithValue(FakeRecallNotifier()),
         chatTransportProvider.overrideWithValue(chat),
       ],
     );

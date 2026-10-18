@@ -4,6 +4,7 @@ import '/app/core/di/alarm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/ai/rhythm_advisor.dart';
 import '/app/core/services/alarm/alarm_stage.dart';
+import '/app/core/services/schedule/recall_plan.dart';
 import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_settings.dart';
@@ -75,7 +76,12 @@ class RhythmController extends AsyncNotifier<RhythmState> {
   /// usage stats walks every app event of the night.
   static const screenCheckGap = Duration(minutes: 10);
 
+  /// Resumes register the nights again at most this often.
+  static const syncGap = Duration(hours: 6);
+
   DateTime? _lastScreenCheck;
+
+  DateTime? _lastSync;
 
   late RhythmStore _store;
 
@@ -192,6 +198,7 @@ class RhythmController extends AsyncNotifier<RhythmState> {
   Future<void> clearPlan() async {
     await _store.savePlan(null);
     await ref.read(alarmServiceProvider).stopAll();
+    await ref.read(recallNotifierProvider).replace(const []);
     state = AsyncData(_stateOf(null, _store.loadLog()));
   }
 
@@ -410,12 +417,43 @@ class RhythmController extends AsyncNotifier<RhythmState> {
   /// a wake-up still ahead this morning is kept; past stages are skipped.
   /// Nights before the plan's first night are left alone, which keeps a
   /// wake-up postponed by [confirmBedtime].
-  Future<bool> _sync(PlanConfig plan) {
+  Future<bool> _sync(PlanConfig plan) async {
     final now = DateTime.now();
+    _lastSync = now;
     final from = DateTime(now.year, now.month, now.day - 1);
+    final chains = plan.chainsFrom(from, horizonNights + 1);
+    final ok = await ref.read(alarmServiceProvider).scheduleChains(chains);
+    await _bookRecall(chains, now);
+    return ok;
+  }
+
+  /// Books the notices that bring the user back when the alarms registered
+  /// above run out, or cancels them when the user turned them off.
+  Future<void> _bookRecall(List<AlarmChain> chains, DateTime now) {
+    DateTime? lastRing;
+    for (final chain in chains) {
+      for (final stage in AlarmStage.chain) {
+        final at = chain.timeOf(stage);
+        if (lastRing == null || at.isAfter(lastRing)) lastRing = at;
+      }
+    }
     return ref
-        .read(alarmServiceProvider)
-        .scheduleChains(plan.chainsFrom(from, horizonNights + 1));
+        .read(recallNotifierProvider)
+        .replace(
+          _store.loadSettings().recallEnabled
+              ? RecallPlan.plan(lastRing: lastRing, now: now)
+              : const [],
+        );
+  }
+
+  /// Registers the upcoming nights again when the app comes back to the
+  /// front after [syncGap]: the process may have outlived the nights
+  /// registered at start. Skipped without a plan.
+  Future<void> refreshAlarms() async {
+    final last = _lastSync;
+    if (last != null && DateTime.now().difference(last) < syncGap) return;
+    final plan = (await future).plan;
+    if (plan != null) await _sync(plan);
   }
 }
 

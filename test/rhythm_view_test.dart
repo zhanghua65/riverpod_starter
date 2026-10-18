@@ -11,6 +11,7 @@ import 'package:riverpod_starter/app/modules/rhythm/views/ring_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_alarm_service.dart';
+import 'fake_recall_notifier.dart';
 
 void main() {
   late FakeAlarmService alarms;
@@ -24,7 +25,10 @@ void main() {
   final notAndroid = TargetPlatformVariant.only(TargetPlatform.linux);
 
   Widget app(Widget child) => ProviderScope(
-    overrides: [alarmServiceProvider.overrideWithValue(alarms)],
+    overrides: [
+        alarmServiceProvider.overrideWithValue(alarms),
+        recallNotifierProvider.overrideWithValue(FakeRecallNotifier()),
+      ],
     child: MaterialApp(home: Scaffold(body: child)),
   );
 

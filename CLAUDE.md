@@ -10,7 +10,7 @@
 ## 目录
 - `lib/app/core/services/schedule/`：排期引擎（`stepping_plan.dart`）、计划配置（含单晚临时作息 `overrides`）、弹性容错（`recovery.dart`）、用户设置、工作作息（`work_schedule.dart`）、本地存储。纯 Dart，不依赖 UI，改这里必须有单测
 - `lib/app/core/services/ai/`：AI 顾问。`chat_client.dart` 调 OpenAI 兼容接口，`rhythm_advisor.dart` 组装提示词并校验模型返回的 JSON。模型只出建议，必须经校验、用户点"采纳"后才改计划，不能让模型直接定闹钟
-- `lib/app/core/services/alarm/`:三段闹钟链(降速、熄灯、起床,外加午休)、闹钟 id 规则、权限
+- `lib/app/core/services/alarm/`:三段闹钟链(降速、熄灯、起床,外加午休)、闹钟 id 规则、权限;`recall_notifier.dart` 用 `flutter_local_notifications` 预约“闹钟快用完”通知(时间算法在 `schedule/recall_plan.dart`,测试用 `FakeRecallNotifier`)
 - `lib/app/core/di/`：Riverpod provider。`rhythm_provider.dart` 里的 `RhythmController` 管计划并保持已注册闹钟同步；`advisor_provider.dart` 管 AI 配置、复盘/临时调整请求和晚睡安慰
 - `lib/app/modules/`:`rhythm`(主页、响铃页、计划设置)、`settings`、`onboarding`、`landing`(底部导航)
 - `lib/app/core/services/usage/`:读取亮屏/熄屏事件(`ScreenUsage`),推断算法在 `schedule/screen_bedtime.dart`;测试用 `FakeScreenUsage`

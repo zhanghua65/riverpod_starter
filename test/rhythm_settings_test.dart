@@ -11,6 +11,7 @@ import 'package:riverpod_starter/app/core/services/schedule/stepping_plan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_alarm_service.dart';
+import 'fake_recall_notifier.dart';
 
 void main() {
   PlanConfig config(RhythmSettings settings) => PlanConfig(
@@ -34,6 +35,14 @@ void main() {
       RhythmSettings.fromJson({'maxStepMinutes': 500, 'napTime': -1}),
       const RhythmSettings(),
     );
+  });
+
+  test('reminders default to on and survive old saved data', () {
+    expect(const RhythmSettings().recallEnabled, isTrue);
+    expect(RhythmSettings.fromJson(const {}).recallEnabled, isTrue);
+    const off = RhythmSettings(recallEnabled: false);
+    expect(RhythmSettings.fromJson(off.toJson()).recallEnabled, isFalse);
+    expect(RhythmSettings.fromJson({'recallEnabled': 'no'}).recallEnabled, isTrue);
   });
 
   test('a smaller step needs more nights', () {
@@ -85,7 +94,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final alarms = FakeAlarmService();
     final container = ProviderContainer(
-      overrides: [alarmServiceProvider.overrideWithValue(alarms)],
+      overrides: [
+        alarmServiceProvider.overrideWithValue(alarms),
+        recallNotifierProvider.overrideWithValue(FakeRecallNotifier()),
+      ],
     );
     addTearDown(container.dispose);
     final notifier = container.read(rhythmControllerProvider.notifier);
@@ -120,7 +132,10 @@ void main() {
   test('settings can be saved before any plan exists', () async {
     SharedPreferences.setMockInitialValues({});
     final container = ProviderContainer(
-      overrides: [alarmServiceProvider.overrideWithValue(FakeAlarmService())],
+      overrides: [
+        alarmServiceProvider.overrideWithValue(FakeAlarmService()),
+        recallNotifierProvider.overrideWithValue(FakeRecallNotifier()),
+      ],
     );
     addTearDown(container.dispose);
     await container.read(rhythmControllerProvider.future);
