@@ -6,6 +6,9 @@ import 'package:riverpod_starter/app/core/services/alarm/alarm_service.dart';
 class FakeAlarmService extends AlarmService {
   final alarms = <int, AlarmSettings>{};
 
+  /// Registrations that reached the plugin.
+  var scheduleCalls = 0;
+
   @override
   Future<bool> scheduleChain(AlarmChain chain) async {
     for (final s in chain.toAlarmSettings()) {
@@ -16,6 +19,7 @@ class FakeAlarmService extends AlarmService {
 
   @override
   Future<bool> schedule(AlarmSettings settings) async {
+    scheduleCalls++;
     alarms[settings.id] = settings;
     return true;
   }
@@ -25,4 +29,7 @@ class FakeAlarmService extends AlarmService {
 
   @override
   Future<void> stopAll() async => alarms.clear();
+
+  @override
+  Future<List<AlarmSettings>> getAlarms() async => alarms.values.toList();
 }

@@ -21,6 +21,22 @@ class AlarmService {
     return ok;
   }
 
+  /// Registers every future stage of [chains], skipping alarms that are
+  /// already registered with exactly the same settings. Each registration
+  /// costs several native calls and store writes in the plugin, so leaving
+  /// unchanged alarms alone keeps the sync on every app start cheap.
+  Future<bool> scheduleChains(List<AlarmChain> chains) async {
+    final existing = {for (final a in await getAlarms()) a.id: a};
+    var ok = true;
+    for (final chain in chains) {
+      for (final settings in chain.toAlarmSettings()) {
+        if (existing[settings.id] == settings) continue;
+        ok = await schedule(settings) && ok;
+      }
+    }
+    return ok;
+  }
+
   /// Replaces every registered alarm with [chains], e.g. a new stepping plan.
   Future<bool> replaceAll(List<AlarmChain> chains) async {
     await Alarm.stopAll();

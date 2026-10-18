@@ -1,4 +1,5 @@
 import 'package:alarm/alarm.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import '/app/routes/app_routes.dart';
 import '/app/modules/landing/views/landing_view.dart';
@@ -10,7 +11,7 @@ class AppPages {
   AppPages._();
 
   static final router = GoRouter(
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
     initialLocation: Paths.LANDING,
     routes: <GoRoute>[
       GoRoute(

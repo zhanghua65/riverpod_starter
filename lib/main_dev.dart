@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/app/core/utils/provider_logger.dart';
@@ -24,7 +25,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      observers: [ProviderLogger()],
+      observers: [if (kDebugMode) ProviderLogger()],
       child: MyApp(),
     ),
   );

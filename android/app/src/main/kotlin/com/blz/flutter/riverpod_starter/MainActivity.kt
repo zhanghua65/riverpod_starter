@@ -9,13 +9,19 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
+    private val background = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -53,12 +59,20 @@ class MainActivity : FlutterActivity() {
                         openUsageAccessSettings()
                         result.success(null)
                     }
-                    "screenEvents" -> result.success(
-                        screenEvents(
-                            (call.argument<Number>("from") ?: 0).toLong(),
-                            (call.argument<Number>("to") ?: 0).toLong(),
-                        ),
-                    )
+                    "screenEvents" -> {
+                        val from = (call.argument<Number>("from") ?: 0).toLong()
+                        val to = (call.argument<Number>("to") ?: 0).toLong()
+                        // Walking a night of usage events is slow; keep it
+                        // off the UI thread and reply on the main looper.
+                        background.execute {
+                            val events = try {
+                                screenEvents(from, to)
+                            } catch (e: Exception) {
+                                null
+                            }
+                            mainHandler.post { result.success(events) }
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -130,6 +144,11 @@ class MainActivity : FlutterActivity() {
         true
     } catch (e: Exception) {
         false
+    }
+
+    override fun onDestroy() {
+        background.shutdown()
+        super.onDestroy()
     }
 
     companion object {

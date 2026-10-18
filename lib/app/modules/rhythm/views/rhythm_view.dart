@@ -51,7 +51,7 @@ class _RhythmViewState extends ConsumerState<RhythmView>
   Future<void> _recordFromScreen() async {
     final record = await ref
         .read(rhythmControllerProvider.notifier)
-        .recordFromScreen();
+        .recordFromScreen(throttled: true);
     if (record == null) return;
     // Best effort; the kind words show up on this page when they arrive.
     final recovery = record.recovery;

@@ -71,6 +71,12 @@ class RhythmController extends AsyncNotifier<RhythmState> {
 
   static const snoozeBedtime = Duration(minutes: 15);
 
+  /// Throttled screen checks (app resumes) run at most this often: reading
+  /// usage stats walks every app event of the night.
+  static const screenCheckGap = Duration(minutes: 10);
+
+  DateTime? _lastScreenCheck;
+
   late RhythmStore _store;
 
   @override
@@ -197,11 +203,16 @@ class RhythmController extends AsyncNotifier<RhythmState> {
   ///
   /// By then the wake-up has rung, so a late night still books the nap
   /// capsule and re-plans but no longer postpones the wake-up.
-  Future<ScreenRecord?> recordFromScreen() async {
+  Future<ScreenRecord?> recordFromScreen({bool throttled = false}) async {
+    final now = DateTime.now();
+    final last = _lastScreenCheck;
+    if (throttled && last != null && now.difference(last) < screenCheckGap) {
+      return null;
+    }
+    _lastScreenCheck = now;
     final current = await future;
     final plan = current.plan;
     if (plan == null) return null;
-    final now = DateTime.now();
     final night = DateTime(now.year, now.month, now.day - 1);
     final planned = plan.chainFor(night);
     if (planned == null || now.isBefore(planned.wakeUp)) return null;
@@ -376,15 +387,12 @@ class RhythmController extends AsyncNotifier<RhythmState> {
   /// a wake-up still ahead this morning is kept; past stages are skipped.
   /// Nights before the plan's first night are left alone, which keeps a
   /// wake-up postponed by [confirmBedtime].
-  Future<bool> _sync(PlanConfig plan) async {
+  Future<bool> _sync(PlanConfig plan) {
     final now = DateTime.now();
     final from = DateTime(now.year, now.month, now.day - 1);
-    final alarms = ref.read(alarmServiceProvider);
-    var ok = true;
-    for (final chain in plan.chainsFrom(from, horizonNights + 1)) {
-      ok = await alarms.scheduleChain(chain) && ok;
-    }
-    return ok;
+    return ref
+        .read(alarmServiceProvider)
+        .scheduleChains(plan.chainsFrom(from, horizonNights + 1));
   }
 }
 

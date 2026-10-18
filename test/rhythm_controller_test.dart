@@ -59,6 +59,22 @@ void main() {
     expect(nights.reduce((a, b) => a.isBefore(b) ? a : b), tomorrow);
   });
 
+  test('a restart leaves alarms that are already registered alone', () async {
+    await container.read(rhythmControllerProvider.future);
+    await controller().applyPlan(onTarget(tomorrow));
+    final registered = Map.of(alarms.alarms);
+    final calls = alarms.scheduleCalls;
+
+    final restarted = ProviderContainer(
+      overrides: [alarmServiceProvider.overrideWithValue(alarms)],
+    );
+    addTearDown(restarted.dispose);
+    await restarted.read(rhythmControllerProvider.future);
+
+    expect(alarms.scheduleCalls, calls);
+    expect(alarms.alarms, registered);
+  });
+
   test('the plan survives a restart and is re-registered', () async {
     await container.read(rhythmControllerProvider.future);
     await controller().applyPlan(onTarget(tomorrow));
