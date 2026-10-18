@@ -14,6 +14,7 @@ import '/app/core/services/schedule/screen_bedtime.dart';
 import '/app/core/services/usage/health_sleep.dart';
 import '/app/core/services/usage/screen_usage.dart';
 import '/app/core/services/schedule/work_schedule.dart';
+import '/app/core/utils/app_log.dart';
 
 class RhythmState {
   const RhythmState({
@@ -226,11 +227,24 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     _lastScreenCheck = now;
     final current = await future;
     final plan = current.plan;
-    if (plan == null) return null;
+    if (plan == null) {
+      AppLog.add('band', 'skip: no plan');
+      return null;
+    }
     final night = DateTime(now.year, now.month, now.day - 1);
     final logged = _entryFor(current.log, night);
     final planned = _plannedChain(plan, night, logged);
-    if (planned == null || now.isBefore(planned.wakeUp)) return null;
+    if (planned == null) {
+      AppLog.add('band', 'skip: no planned night for ${_day(night)}');
+      return null;
+    }
+    if (now.isBefore(planned.wakeUp)) {
+      AppLog.add(
+        'band',
+        'skip: before planned wake-up ${_clock(planned.wakeUp)}',
+      );
+      return null;
+    }
     if (_bandMayImprove(logged)) {
       final sessions = await ref
           .read(healthSleepProvider)
@@ -241,7 +255,18 @@ class RhythmController extends AsyncNotifier<RhythmState> {
       final sleep = sessions == null
           ? null
           : BandSleep.pick(planned: planned, sessions: sessions, now: now);
+      if (sessions != null) {
+        AppLog.add(
+          'band',
+          sleep == null
+              ? 'no usable night for ${_day(night)}: need ${BandSleep.minSleep.inHours}h '
+                    'starting before ${_clock(planned.wakeUp)}, ended before now'
+              : 'picked ${_clock(sleep.start)}-${_clock(sleep.end)} for ${_day(night)}',
+        );
+      }
       if (sleep != null) return _recordFromBand(night, sleep);
+    } else {
+      AppLog.add('band', 'skip: ${_day(night)} entered by hand');
     }
     if (logged?.actualWakeUp != null) return null;
 
@@ -407,6 +432,13 @@ class RhythmController extends AsyncNotifier<RhythmState> {
 
   static DateTime wakeUpAfter(DateTime night, ClockTime t) =>
       DateTime(night.year, night.month, night.day + 1, t.hour, t.minute);
+
+  static String _two(int v) => v.toString().padLeft(2, '0');
+
+  static String _day(DateTime t) => '${_two(t.month)}-${_two(t.day)}';
+
+  static String _clock(DateTime t) =>
+      '${_day(t)} ${_two(t.hour)}:${_two(t.minute)}';
 
   static SleepLogEntry? _entryFor(List<SleepLogEntry> log, DateTime night) =>
       log.where((e) => e.night == night).firstOrNull;

@@ -22,6 +22,9 @@
     <queries>
         <!-- Health Connect as a separate app (Android 13 and older). -->
         <package android:name="com.google.android.apps.healthdata"/>
+        <!-- Health Connect as a system module (Android 14+), for diagnostics. -->
+        <package android:name="com.google.android.healthconnect.controller"/>
+        <package android:name="com.android.healthconnect.controller"/>
         <!-- Xiaomi's band apps, opened so the user can turn on syncing. -->
         <package android:name="com.mi.health"/>
         <package android:name="com.xiaomi.wearable"/>

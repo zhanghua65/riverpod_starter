@@ -23,6 +23,9 @@ class FakeHealthSleep extends HealthSleep {
   Future<bool> openBandApp() async => false;
 
   @override
+  Future<List<String>> diagnose() async => const ['fake'];
+
+  @override
   Future<List<SleepSession>?> sessions(DateTime from, DateTime to) async =>
       sleepSessions;
 }

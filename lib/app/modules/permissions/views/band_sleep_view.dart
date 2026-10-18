@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/schedule/band_sleep.dart';
@@ -23,6 +24,8 @@ class _BandSleepViewState extends ConsumerState<BandSleepView>
   HealthSleepStatus? _status;
   List<SleepSession>? _sessions;
   DateTime? _readAt;
+  List<String>? _diagnosis;
+  bool _diagnosing = false;
 
   @override
   void initState() {
@@ -80,7 +83,10 @@ class _BandSleepViewState extends ConsumerState<BandSleepView>
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(padding: const EdgeInsets.all(16), children: _body()),
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [..._body(), const Divider(height: 32), ..._diagnose()],
+            ),
     );
   }
 
@@ -183,6 +189,59 @@ class _BandSleepViewState extends ConsumerState<BandSleepView>
     ];
   }
 
+  /// Runs the Health Connect probe and shows its lines; they also go to the
+  /// diagnostic log on the permission check page.
+  List<Widget> _diagnose() {
+    final lines = _diagnosis;
+    return [
+      Row(
+        children: [
+          const Expanded(child: Text('读不到数据？运行诊断，逐项检查哪一步出了问题。')),
+          TextButton(
+            onPressed: _diagnosing
+                ? null
+                : () async {
+                    setState(() => _diagnosing = true);
+                    final result = await ref
+                        .read(healthSleepProvider)
+                        .diagnose();
+                    if (!mounted) return;
+                    setState(() {
+                      _diagnosis = result;
+                      _diagnosing = false;
+                    });
+                  },
+            child: Text(_diagnosing ? '诊断中…' : '运行诊断'),
+          ),
+        ],
+      ),
+      if (lines != null) ...[
+        for (final hint in diagnosisHints(lines))
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.lightbulb_outline, color: Colors.orange),
+            title: Text(hint),
+          ),
+        SelectableText(
+          lines.join('\n'),
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+              messenger.showSnackBar(const SnackBar(content: Text('已复制')));
+            },
+            child: const Text('复制诊断结果'),
+          ),
+        ),
+      ],
+    ];
+  }
+
   /// What last night's record would pick, the same way the controller does.
   SleepSession? _lastNight(List<SleepSession> sessions) {
     final plan = ref.read(rhythmControllerProvider).value?.plan;
@@ -210,3 +269,59 @@ String sourceName(String package) => switch (package) {
   '' => '未知',
   _ => package,
 };
+
+/// Plain-language conclusions from the probe lines of
+/// [HealthSleep.diagnose], most likely cause first.
+List<String> diagnosisHints(List<String> lines) {
+  bool has(String text) => lines.any((l) => l.contains(text));
+  String? value(String prefix) {
+    for (final l in lines) {
+      if (l.startsWith(prefix)) return l.substring(prefix.length);
+    }
+    return null;
+  }
+
+  final hints = <String>[];
+  final status = value('hc sdkStatus=');
+  if (status == 'unavailable') {
+    hints.add(
+      '系统里找不到 Health Connect。Android 13 及以下需要安装“Health Connect”应用，国行系统可能没有。',
+    );
+    return hints;
+  }
+  if (status == 'updateRequired') {
+    hints.add('Health Connect 版本过旧，请先更新。');
+    return hints;
+  }
+  final granted = value('hc granted=');
+  if (granted != null && !granted.contains('READ_SLEEP')) {
+    hints.add('Health Connect 里没有授予本应用“睡眠”读取权限。');
+    return hints;
+  }
+  final writers = [
+    for (final l in lines)
+      if (l.startsWith('origin ')) l.split(' ')[1],
+  ];
+  if (has('read 30d sleep sessions=0')) {
+    final miHealth = value('pkg com.mi.health=');
+    final miFitness = value('pkg com.xiaomi.wearable=');
+    if (miHealth != null &&
+        miHealth != 'missing' &&
+        (miFitness == null || miFitness == 'missing')) {
+      hints.add(
+        '只装了国内版“小米运动健康”，它可能不向 Health Connect 写入睡眠；请在它的设置里找“Health Connect / 第三方数据”，找不到就说明这个版本不支持。',
+      );
+    }
+    hints.add(
+      'Health Connect 最近 30 天没有任何睡眠记录：问题在手环 App 没有同步过去，不在本应用。请在 Health Connect 的“数据和访问 → 睡眠”确认。',
+    );
+  } else if (writers.isNotEmpty) {
+    hints.add(
+      'Health Connect 里有睡眠数据（来源：${writers.join('、')}），本应用能读到。如果首页仍没有记录，看诊断日志里 [band] 开头的行，通常是时间不在计划的睡眠时段内。',
+    );
+  }
+  if (has('read 30d failed')) {
+    hints.add('读取 Health Connect 时出错，请把诊断结果复制给开发者。');
+  }
+  return hints;
+}

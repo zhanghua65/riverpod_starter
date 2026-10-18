@@ -61,4 +61,42 @@ void main() {
     expect(sourceName('com.xiaomi.wearable'), '小米穿戴 / Mi Fitness');
     expect(sourceName('com.example.band'), 'com.example.band');
   });
+
+  group('diagnosis hints', () {
+    test('missing Health Connect stops there', () {
+      final hints = diagnosisHints(['hc sdkStatus=unavailable']);
+      expect(hints.single, contains('找不到 Health Connect'));
+    });
+
+    test('no sleep permission is named', () {
+      final hints = diagnosisHints([
+        'hc sdkStatus=available',
+        'hc granted=READ_STEPS',
+      ]);
+      expect(hints.single, contains('睡眠'));
+    });
+
+    test('nothing written points at the band app', () {
+      final hints = diagnosisHints([
+        'hc sdkStatus=available',
+        'pkg com.mi.health=3.30.0',
+        'pkg com.xiaomi.wearable=missing',
+        'hc granted=READ_SLEEP',
+        'read 30d sleep sessions=0',
+      ]);
+      expect(hints, hasLength(2));
+      expect(hints.first, contains('小米运动健康'));
+      expect(hints.last, contains('不在本应用'));
+    });
+
+    test('data present names the writer', () {
+      final hints = diagnosisHints([
+        'hc sdkStatus=available',
+        'hc granted=READ_SLEEP',
+        'read 30d sleep sessions=3',
+        'origin com.xiaomi.wearable count=3 latestEnd=10-18 07:10',
+      ]);
+      expect(hints.single, contains('com.xiaomi.wearable'));
+    });
+  });
 }

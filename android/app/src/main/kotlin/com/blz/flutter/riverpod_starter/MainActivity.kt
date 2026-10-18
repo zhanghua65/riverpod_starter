@@ -120,15 +120,30 @@ class MainActivity : FlutterActivity() {
                         val from = (call.argument<Number>("from") ?: 0).toLong()
                         val to = (call.argument<Number>("to") ?: 0).toLong()
                         scope.launch {
-                            val sessions = try {
-                                sleepSessions(from, to)
-                            } catch (e: Exception) {
-                                // No permission (SecurityException) or Health
-                                // Connect not reachable.
-                                null
+                            // Errors carry the reason so the Dart side can
+                            // log why nothing was read.
+                            val status = HealthConnectClient.getSdkStatus(this@MainActivity)
+                            when {
+                                status != HealthConnectClient.SDK_AVAILABLE ->
+                                    result.error("hc_unavailable", "sdkStatus=${sdkStatusName(status)}", null)
+                                !hasSleepAccess() ->
+                                    result.error("hc_no_permission", "granted=${grantedPermissions()}", null)
+                                else -> try {
+                                    result.success(sleepSessions(from, to))
+                                } catch (e: Exception) {
+                                    result.error("hc_read_failed", "${e.javaClass.simpleName}: ${e.message}", null)
+                                }
                             }
-                            result.success(sessions)
                         }
+                    }
+                    "healthDiagnose" -> scope.launch {
+                        result.success(
+                            try {
+                                healthDiagnose()
+                            } catch (e: Exception) {
+                                listOf("diagnose failed: ${e.javaClass.simpleName}: ${e.message}")
+                            },
+                        )
                     }
                     else -> result.notImplemented()
                 }
@@ -200,9 +215,6 @@ class MainActivity : FlutterActivity() {
         return result
     }
 
-    private fun healthConnectAvailable(): Boolean =
-        HealthConnectClient.getSdkStatus(this) == HealthConnectClient.SDK_AVAILABLE
-
     // "unavailable", "needsUpdate", "denied" or "granted"; matches the Dart
     // HealthSleepStatus names.
     private suspend fun healthStatus(): String = when (HealthConnectClient.getSdkStatus(this)) {
@@ -259,9 +271,8 @@ class MainActivity : FlutterActivity() {
     }
 
     // Sleep sessions between [from] and [to] (epoch millis), from every app
-    // that writes them. Null when Health Connect is missing.
-    private suspend fun sleepSessions(from: Long, to: Long): List<Map<String, Any>>? {
-        if (!healthConnectAvailable() || !hasSleepAccess()) return null
+    // that writes them. The caller checks availability and access first.
+    private suspend fun sleepSessions(from: Long, to: Long): List<Map<String, Any>> {
         val response = HealthConnectClient.getOrCreate(this).readRecords(
             ReadRecordsRequest(
                 recordType = SleepSessionRecord::class,
@@ -278,6 +289,70 @@ class MainActivity : FlutterActivity() {
                 "source" to it.metadata.dataOrigin.packageName,
             )
         }
+    }
+
+    private fun sdkStatusName(status: Int): String = when (status) {
+        HealthConnectClient.SDK_AVAILABLE -> "available"
+        HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> "updateRequired"
+        HealthConnectClient.SDK_UNAVAILABLE -> "unavailable"
+        else -> "unknown($status)"
+    }
+
+    private suspend fun grantedPermissions(): String = try {
+        HealthConnectClient.getOrCreate(this).permissionController.getGrantedPermissions()
+            .joinToString(",") { it.removePrefix("android.permission.health.") }
+            .ifEmpty { "none" }
+    } catch (e: Exception) {
+        "error ${e.javaClass.simpleName}: ${e.message}"
+    }
+
+    private fun packageVersion(pkg: String): String = try {
+        packageManager.getPackageInfo(pkg, 0).versionName ?: "installed"
+    } catch (e: Exception) {
+        "missing"
+    }
+
+    // Everything needed to tell where band sleep gets lost: the system side
+    // (Health Connect present, permission granted), the writer side (which
+    // apps are installed) and what a read of the last 30 days returns.
+    private suspend fun healthDiagnose(): List<String> {
+        val lines = mutableListOf<String>()
+        lines += "android sdk=${Build.VERSION.SDK_INT} release=${Build.VERSION.RELEASE} maker=${Build.MANUFACTURER} model=${Build.MODEL}"
+        val status = HealthConnectClient.getSdkStatus(this)
+        lines += "hc sdkStatus=${sdkStatusName(status)}"
+        for (pkg in HEALTH_PROVIDERS) lines += "pkg $pkg=${packageVersion(pkg)}"
+        for (pkg in BAND_APPS) lines += "pkg $pkg=${packageVersion(pkg)}"
+        if (status != HealthConnectClient.SDK_AVAILABLE) return lines
+        lines += "hc granted=${grantedPermissions()}"
+        if (!hasSleepAccess()) return lines
+        val now = System.currentTimeMillis()
+        val from = now - 30L * 24 * 60 * 60 * 1000
+        val records = try {
+            HealthConnectClient.getOrCreate(this).readRecords(
+                ReadRecordsRequest(
+                    recordType = SleepSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(
+                        Instant.ofEpochMilli(from),
+                        Instant.ofEpochMilli(now),
+                    ),
+                ),
+            ).records
+        } catch (e: Exception) {
+            lines += "read 30d failed: ${e.javaClass.simpleName}: ${e.message}"
+            return lines
+        }
+        lines += "read 30d sleep sessions=${records.size}"
+        val format = SimpleDateFormat("MM-dd HH:mm", Locale.US)
+        for ((origin, list) in records.groupBy { it.metadata.dataOrigin.packageName }) {
+            val latest = list.maxOf { it.endTime.toEpochMilli() }
+            lines += "origin $origin count=${list.size} latestEnd=${format.format(Date(latest))}"
+        }
+        for (r in records.sortedByDescending { it.startTime }.take(5)) {
+            lines += "session ${format.format(Date(r.startTime.toEpochMilli()))}-" +
+                "${format.format(Date(r.endTime.toEpochMilli()))} stages=${r.stages.size} " +
+                "origin=${r.metadata.dataOrigin.packageName}"
+        }
+        return lines
     }
 
     // Vendor settings pages are undocumented and move between ROM versions:
@@ -305,5 +380,13 @@ class MainActivity : FlutterActivity() {
         // 小米运动健康 (China) and Mi Fitness (global); they sync the band's
         // sleep to Health Connect.
         private val BAND_APPS = listOf("com.mi.health", "com.xiaomi.wearable")
+
+        // Where Health Connect lives: a Play app up to Android 13, a system
+        // module from Android 14.
+        private val HEALTH_PROVIDERS = listOf(
+            HEALTH_CONNECT_PACKAGE,
+            "com.google.android.healthconnect.controller",
+            "com.android.healthconnect.controller",
+        )
     }
 }
