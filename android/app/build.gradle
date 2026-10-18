@@ -99,7 +99,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            // Fall back to the debug key when key.properties is absent, so
+            // local release runs still work; real releases need key.properties.
+            signingConfig keystoreProperties['storeFile'] ? signingConfigs.release : signingConfigs.debug
         }
     }
 
