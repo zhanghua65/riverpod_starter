@@ -436,7 +436,8 @@ class _LastNightCard extends StatelessWidget {
         subtitle: Text(detail),
       ),
     );
-  }}
+  }
+}
 
 /// Lets the user correct the bedtime and wake-up recorded for [night].
 class _EditEntrySheet extends ConsumerWidget {
