@@ -25,6 +25,7 @@ class SleepLogEntry {
     required this.actualBedtime,
     this.source = BedtimeSource.manual,
     this.actualWakeUp,
+    this.wakeUpSource = BedtimeSource.screen,
   });
 
   final DateTime night;
@@ -36,12 +37,29 @@ class SleepLogEntry {
   /// is known.
   final DateTime? actualWakeUp;
 
-  SleepLogEntry withWakeUp(DateTime at) => SleepLogEntry(
+  /// How [actualWakeUp] was recorded: from the morning's screen use, or
+  /// entered by the user.
+  final BedtimeSource wakeUpSource;
+
+  SleepLogEntry withWakeUp(
+    DateTime at, {
+    BedtimeSource source = BedtimeSource.screen,
+  }) => SleepLogEntry(
     night: night,
     plannedBedtime: plannedBedtime,
     actualBedtime: actualBedtime,
-    source: source,
+    source: this.source,
     actualWakeUp: at,
+    wakeUpSource: source,
+  );
+
+  /// The same night with the bedtime corrected by the user.
+  SleepLogEntry withBedtime(DateTime at) => SleepLogEntry(
+    night: night,
+    plannedBedtime: plannedBedtime,
+    actualBedtime: at,
+    actualWakeUp: actualWakeUp,
+    wakeUpSource: wakeUpSource,
   );
 
   Duration get lateBy => actualBedtime.difference(plannedBedtime);
@@ -52,6 +70,7 @@ class SleepLogEntry {
     'actual': actualBedtime.toIso8601String(),
     'source': source.name,
     if (actualWakeUp != null) 'wakeUp': actualWakeUp!.toIso8601String(),
+    if (actualWakeUp != null) 'wakeUpSource': wakeUpSource.name,
   };
 
   factory SleepLogEntry.fromJson(Map<String, dynamic> json) => SleepLogEntry(
@@ -65,6 +84,10 @@ class SleepLogEntry {
     actualWakeUp: json['wakeUp'] is String
         ? DateTime.tryParse(json['wakeUp'] as String)
         : null,
+    // Wake-ups saved before sources existed all came from the screen.
+    wakeUpSource: json['wakeUpSource'] == BedtimeSource.manual.name
+        ? BedtimeSource.manual
+        : BedtimeSource.screen,
   );
 }
 
@@ -201,6 +224,29 @@ class RhythmStore {
       _saveLog([
         for (final e in loadLog()) e.night == night ? e.withWakeUp(at) : e,
       ]);
+
+  /// Replaces the logged bedtime and/or wake-up of [night] with times the
+  /// user entered. Nothing changes when that night has no entry.
+  Future<List<SleepLogEntry>> editLog(
+    DateTime night, {
+    DateTime? bedtime,
+    DateTime? wakeUp,
+  }) => _saveLog([
+    for (final e in loadLog())
+      if (e.night != night) e else _edited(e, bedtime: bedtime, wakeUp: wakeUp),
+  ]);
+
+  static SleepLogEntry _edited(
+    SleepLogEntry e, {
+    DateTime? bedtime,
+    DateTime? wakeUp,
+  }) {
+    var edited = bedtime == null ? e : e.withBedtime(bedtime);
+    if (wakeUp != null) {
+      edited = edited.withWakeUp(wakeUp, source: BedtimeSource.manual);
+    }
+    return edited;
+  }
 
   Future<List<SleepLogEntry>> _saveLog(List<SleepLogEntry> log) async {
     final kept = log.take(maxLogEntries).toList();

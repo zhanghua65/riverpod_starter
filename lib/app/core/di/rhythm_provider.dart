@@ -8,6 +8,7 @@ import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
+import '/app/core/services/schedule/stepping_plan.dart';
 import '/app/core/services/schedule/screen_bedtime.dart';
 import '/app/core/services/usage/screen_usage.dart';
 import '/app/core/services/schedule/work_schedule.dart';
@@ -254,6 +255,42 @@ class RhythmController extends AsyncNotifier<RhythmState> {
       wakeUp: wakeUp,
     );
   }
+
+  /// Corrects the logged bedtime and/or wake-up of [night] with clock times
+  /// the user picked. A bedtime before noon is read as after midnight; the
+  /// wake-up is on the morning after [night].
+  ///
+  /// Only the record changes: alarms and the plan stay as they are, and a
+  /// corrected night is never overwritten by [recordFromScreen] again.
+  /// Throws [ArgumentError] when the wake-up would not be after the bedtime.
+  Future<void> editEntry(
+    DateTime night, {
+    ClockTime? bedtime,
+    ClockTime? wakeUp,
+  }) async {
+    final entry = _entryFor((await future).log, night);
+    if (entry == null) return;
+    final bed = bedtime == null ? null : bedtimeOn(night, bedtime);
+    final woke = wakeUp == null ? null : wakeUpAfter(night, wakeUp);
+    final newBed = bed ?? entry.actualBedtime;
+    final newWake = woke ?? entry.actualWakeUp;
+    if (newWake != null && !newWake.isAfter(newBed)) {
+      throw ArgumentError('wake-up $newWake is not after bedtime $newBed');
+    }
+    final log = await _store.editLog(night, bedtime: bed, wakeUp: woke);
+    state = AsyncData(_stateOf((await future).plan, log));
+  }
+
+  static DateTime bedtimeOn(DateTime night, ClockTime t) => DateTime(
+    night.year,
+    night.month,
+    night.day + (t.hour < 12 ? 1 : 0),
+    t.hour,
+    t.minute,
+  );
+
+  static DateTime wakeUpAfter(DateTime night, ClockTime t) =>
+      DateTime(night.year, night.month, night.day + 1, t.hour, t.minute);
 
   static SleepLogEntry? _entryFor(List<SleepLogEntry> log, DateTime night) =>
       log.where((e) => e.night == night).firstOrNull;

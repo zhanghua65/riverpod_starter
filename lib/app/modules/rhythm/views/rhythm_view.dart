@@ -275,6 +275,11 @@ class _PlanOverview extends StatelessWidget {
             ),
             title: Text(monthDay(entry.night)),
             subtitle: Text(_logLine(entry)),
+            trailing: const Icon(Icons.edit, size: 18),
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              builder: (_) => _EditEntrySheet(night: entry.night),
+            ),
           ),
       ],
     );
@@ -284,9 +289,104 @@ class _PlanOverview extends StatelessWidget {
 String _logLine(SleepLogEntry entry) {
   final screen = entry.source == BedtimeSource.screen ? '（熄屏）' : '';
   final wakeUp = entry.actualWakeUp;
+  final woke = wakeUp == null
+      ? ''
+      : ' · 起床 ${hourMinute(wakeUp)}'
+            '${entry.wakeUpSource == BedtimeSource.screen ? '（亮屏）' : ''}';
   return '计划 ${hourMinute(entry.plannedBedtime)} · '
-      '实际 ${hourMinute(entry.actualBedtime)}$screen'
-      '${wakeUp == null ? '' : ' · 起床 ${hourMinute(wakeUp)}'}';
+      '实际 ${hourMinute(entry.actualBedtime)}$screen$woke';
+}
+
+/// Lets the user correct the bedtime and wake-up recorded for [night].
+class _EditEntrySheet extends ConsumerWidget {
+  const _EditEntrySheet({required this.night});
+
+  final DateTime night;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entry = ref
+        .watch(rhythmControllerProvider)
+        .value
+        ?.log
+        .where((e) => e.night == night)
+        .firstOrNull;
+    if (entry == null) return const SizedBox.shrink();
+    final wakeUp = entry.actualWakeUp;
+
+    Future<void> edit({ClockTime? bedtime, ClockTime? wakeUp}) async {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        await ref
+            .read(rhythmControllerProvider.notifier)
+            .editEntry(night, bedtime: bedtime, wakeUp: wakeUp);
+      } on ArgumentError {
+        messenger.showSnackBar(const SnackBar(content: Text('起床时间要晚于入睡时间')));
+      }
+    }
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '修改 ${monthDay(night)} 的记录',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text('只修改记录，不会改动闹钟和计划；改过的时间不会再被自动记录覆盖。'),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('实际入睡'),
+              subtitle: Text(
+                entry.source == BedtimeSource.screen ? '按熄屏时间自动记录' : '手动记录',
+              ),
+              trailing: Text(
+                hourMinute(entry.actualBedtime),
+                style: const TextStyle(fontSize: 18),
+              ),
+              onTap: () async {
+                final picked = await pickClockTime(
+                  context,
+                  ClockTime.of(entry.actualBedtime),
+                );
+                if (picked != null) await edit(bedtime: picked);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('实际起床'),
+              subtitle: Text(
+                wakeUp == null
+                    ? '还没有记录，点击补记'
+                    : entry.wakeUpSource == BedtimeSource.screen
+                    ? '按早上亮屏超过 10 分钟自动记录'
+                    : '手动记录',
+              ),
+              trailing: Text(
+                wakeUp == null ? '--:--' : hourMinute(wakeUp),
+                style: const TextStyle(fontSize: 18),
+              ),
+              onTap: () async {
+                final picked = await pickClockTime(
+                  context,
+                  wakeUp == null
+                      ? ClockTime.of(
+                          entry.plannedBedtime.add(const Duration(hours: 8)),
+                        )
+                      : ClockTime.of(wakeUp),
+                );
+                if (picked != null) await edit(wakeUp: picked);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _UpcomingAlarms extends ConsumerWidget {

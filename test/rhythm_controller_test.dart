@@ -211,6 +211,63 @@ void main() {
       expect(await controller().recordFromScreen(), isNull);
     }, skip: !morningUse);
 
+    test(
+      'the user can correct both times and auto-recording keeps them',
+      () async {
+        await container.read(rhythmControllerProvider.future);
+        await controller().applyPlan(afternoon());
+        screen.screenEvents = [
+          ScreenEvent(yesterdayAt(15, 0), on: true),
+          ScreenEvent(yesterdayAt(17, 30), on: false),
+        ];
+        await controller().recordFromScreen();
+
+        await controller().editEntry(
+          yesterday,
+          bedtime: const ClockTime(16, 20),
+        );
+        var entry = container.read(rhythmControllerProvider).value!.log.single;
+        expect(entry.actualBedtime, yesterdayAt(16, 20));
+        expect(entry.source, BedtimeSource.manual);
+        expect(entry.actualWakeUp, isNull);
+
+        await controller().editEntry(yesterday, wakeUp: const ClockTime(7, 10));
+        entry = container.read(rhythmControllerProvider).value!.log.single;
+        expect(
+          entry.actualWakeUp,
+          DateTime(now.year, now.month, now.day, 7, 10),
+        );
+        expect(entry.wakeUpSource, BedtimeSource.manual);
+
+        // Screen data never overwrites what the user entered.
+        screen.screenEvents = [
+          ScreenEvent(yesterdayAt(18, 0), on: false),
+          ScreenEvent(DateTime(now.year, now.month, now.day, 0, 5), on: true),
+        ];
+        expect(await controller().recordFromScreen(), isNull);
+        entry = container.read(rhythmControllerProvider).value!.log.single;
+        expect(entry.actualBedtime, yesterdayAt(16, 20));
+        expect(
+          entry.actualWakeUp,
+          DateTime(now.year, now.month, now.day, 7, 10),
+        );
+      },
+    );
+
+    test('a wake-up before the bedtime is refused', () async {
+      await container.read(rhythmControllerProvider.future);
+      await controller().applyPlan(afternoon());
+      await controller().confirmBedtime(yesterday, yesterdayAt(16, 5));
+
+      // Wake-up 06:00 the next morning; a bedtime of 08:00 (read as after
+      // midnight) would come after it.
+      await controller().editEntry(yesterday, wakeUp: const ClockTime(6, 0));
+      expect(
+        controller().editEntry(yesterday, bedtime: const ClockTime(8, 0)),
+        throwsArgumentError,
+      );
+    });
+
     test('nothing happens without usage access', () async {
       await container.read(rhythmControllerProvider.future);
       await controller().applyPlan(afternoon());

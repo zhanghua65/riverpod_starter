@@ -28,4 +28,28 @@ void main() {
     );
     expect(SleepLogEntry.fromJson(entry.toJson()).actualWakeUp, isNull);
   });
+
+  test('a wake-up remembers whether the user entered it', () {
+    final woke = entry.withWakeUp(
+      DateTime(2026, 10, 11, 7, 20),
+      source: BedtimeSource.manual,
+    );
+    expect(
+      SleepLogEntry.fromJson(woke.toJson()).wakeUpSource,
+      BedtimeSource.manual,
+    );
+    // Saved before wake-up sources existed: those came from the screen.
+    final old = entry.withWakeUp(DateTime(2026, 10, 11, 7, 20)).toJson()
+      ..remove('wakeUpSource');
+    expect(SleepLogEntry.fromJson(old).wakeUpSource, BedtimeSource.screen);
+  });
+
+  test('a corrected bedtime counts as manual and keeps the wake-up', () {
+    final woke = entry.withWakeUp(DateTime(2026, 10, 11, 7, 20));
+    final fixed = woke.withBedtime(DateTime(2026, 10, 10, 23, 50));
+    expect(fixed.source, BedtimeSource.manual);
+    expect(fixed.actualBedtime, DateTime(2026, 10, 10, 23, 50));
+    expect(fixed.actualWakeUp, DateTime(2026, 10, 11, 7, 20));
+    expect(fixed.wakeUpSource, BedtimeSource.screen);
+  });
 }
