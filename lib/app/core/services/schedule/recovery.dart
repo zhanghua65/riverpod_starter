@@ -1,6 +1,7 @@
 import '/app/core/services/alarm/alarm_chain.dart';
 import 'plan_config.dart';
 import 'stepping_plan.dart';
+import 'work_schedule.dart';
 
 /// 弹性容错（Anti-Guilt）: what changes after the user goes to bed late.
 class Recovery {
@@ -34,30 +35,32 @@ class Recovery {
   /// Works out the recovery for [planned] when the user actually went to bed
   /// at [actualBedtime].
   ///
-  /// - Wake-up: postponed to give [minSleep], capped at [maxWakeDelay].
-  /// - Nap capsule: offered at the configured nap time on the wake-up day.
+  /// - Wake-up: postponed to give [minSleep], capped at [maxWakeDelay] and,
+  ///   on a workday of [work], at the latest wake-up that is still on time.
+  /// - Nap capsule: offered at the configured nap time on the wake-up day,
+  ///   or in the lunch break on a workday.
   /// - Re-plan: the plan restarts the next night from the actual bedtime and
   ///   wake-up, stepping toward the same targets.
   static Recovery after({
     required AlarmChain planned,
     required DateTime actualBedtime,
     required PlanConfig config,
+    WorkSchedule? work,
   }) {
     final lateBy = actualBedtime.difference(planned.bedtime);
     if (lateBy < grace) return Recovery(lateBy: Duration.zero);
 
+    final workday = work != null && work.isWorkday(planned.wakeUp);
     var wakeUp = actualBedtime.add(minSleep);
-    final latest = planned.wakeUp.add(maxWakeDelay);
+    var latest = planned.wakeUp.add(maxWakeDelay);
+    if (workday) {
+      final onTime = _at(planned.wakeUp, work.latestWakeUp);
+      if (onTime.isBefore(latest)) latest = onTime;
+    }
     if (wakeUp.isAfter(latest)) wakeUp = latest;
     if (wakeUp.isBefore(planned.wakeUp)) wakeUp = planned.wakeUp;
 
-    final napAt = DateTime(
-      wakeUp.year,
-      wakeUp.month,
-      wakeUp.day,
-      config.settings.napTime.hour,
-      config.settings.napTime.minute,
-    );
+    final napAt = _at(wakeUp, workday ? work.napTime : config.settings.napTime);
 
     final night = planned.night;
     return Recovery(
@@ -71,4 +74,7 @@ class Recovery {
       ),
     );
   }
+
+  static DateTime _at(DateTime day, ClockTime time) =>
+      DateTime(day.year, day.month, day.day, time.hour, time.minute);
 }

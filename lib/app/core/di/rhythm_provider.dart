@@ -2,17 +2,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/app/core/di/alarm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
+import '/app/core/services/ai/rhythm_advisor.dart';
 import '/app/core/services/alarm/alarm_stage.dart';
 import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
+import '/app/core/services/schedule/work_schedule.dart';
 
 class RhythmState {
   const RhythmState({
     this.plan,
     this.log = const [],
     this.settings = const RhythmSettings(),
+    this.work,
   });
 
   final PlanConfig? plan;
@@ -21,6 +24,9 @@ class RhythmState {
   final List<SleepLogEntry> log;
 
   final RhythmSettings settings;
+
+  /// Null until the user enters a work schedule.
+  final WorkSchedule? work;
 }
 
 final rhythmStoreProvider = FutureProvider<RhythmStore>(
@@ -49,7 +55,12 @@ class RhythmController extends AsyncNotifier<RhythmState> {
   }
 
   RhythmState _stateOf(PlanConfig? plan, List<SleepLogEntry> log) =>
-      RhythmState(plan: plan, log: log, settings: _store.loadSettings());
+      RhythmState(
+        plan: plan,
+        log: log,
+        settings: _store.loadSettings(),
+        work: _store.loadWork(),
+      );
 
   /// Saves [plan] and replaces every registered alarm with it.
   Future<bool> applyPlan(PlanConfig plan) async {
@@ -70,6 +81,79 @@ class RhythmController extends AsyncNotifier<RhythmState> {
       return;
     }
     await applyPlan(plan.withSettings(settings));
+  }
+
+  /// Saves [work]; null removes it. Used from the next late night on.
+  Future<void> updateWork(WorkSchedule? work) async {
+    await _store.saveWork(work);
+    final current = await future;
+    state = AsyncData(_stateOf(current.plan, current.log));
+  }
+
+  /// Applies an accepted weekly review: new settings and, when it proposes
+  /// them, new targets reached step by step from tonight.
+  Future<void> applyReview(ReviewSuggestion review) async {
+    final current = await future;
+    final settings = review.applyTo(current.settings);
+    await _store.saveSettings(settings);
+    final plan = current.plan;
+    if (plan == null) {
+      state = AsyncData(_stateOf(null, current.log));
+      return;
+    }
+    final now = DateTime.now();
+    final bed = review.targetBedtime;
+    final wake = review.targetWakeUp;
+    final next = bed != null && wake != null
+        ? plan.retarget(
+            night: DateTime(now.year, now.month, now.day),
+            targetBedtime: bed,
+            targetWakeUp: wake,
+            settings: settings,
+          )
+        : plan.withSettings(settings);
+    await _replace(next, current.log);
+  }
+
+  /// Adds the one-off nights of an accepted [adjustment], replacing earlier
+  /// ones for the same nights. Past overrides are dropped.
+  Future<void> applyAdjustment(TemporaryAdjustment adjustment) async {
+    final current = await future;
+    final plan = current.plan;
+    if (plan == null) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    await _replace(
+      plan.withOverrides({
+        for (final e in plan.overrides.entries)
+          if (!e.key.isBefore(today)) e.key: e.value,
+        ...adjustment.nights,
+      }),
+      current.log,
+    );
+  }
+
+  /// Puts [night] back on the plan.
+  Future<void> removeOverride(DateTime night) async {
+    final current = await future;
+    final plan = current.plan;
+    if (plan == null) return;
+    await _replace(
+      plan.withOverrides({
+        for (final e in plan.overrides.entries)
+          if (e.key != night) e.key: e.value,
+      }),
+      current.log,
+    );
+  }
+
+  /// Saves [plan] and re-registers its nights in place. Unlike [applyPlan]
+  /// nothing is stopped first, which keeps this morning's postponed wake-up
+  /// and today's nap capsule.
+  Future<void> _replace(PlanConfig plan, List<SleepLogEntry> log) async {
+    await _store.savePlan(plan);
+    await _sync(plan);
+    state = AsyncData(_stateOf(plan, log));
   }
 
   Future<void> clearPlan() async {
@@ -100,6 +184,7 @@ class RhythmController extends AsyncNotifier<RhythmState> {
       planned: planned,
       actualBedtime: at,
       config: plan,
+      work: current.work,
     );
     final replan = recovery.replan;
     if (replan == null) {

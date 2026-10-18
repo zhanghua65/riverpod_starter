@@ -2,6 +2,7 @@ import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '/app/core/di/advisor_provider.dart';
 import '/app/core/di/alarm_provider.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
@@ -104,6 +105,7 @@ class _RingViewState extends ConsumerState<RingView> {
 
   List<Widget> _actions(AlarmStage? stage) {
     final controller = ref.read(rhythmControllerProvider.notifier);
+    final comfort = ref.read(comfortProvider.notifier);
     switch (stage) {
       case AlarmStage.windDown:
         return [_primary('好，我放下手机', () async => null)];
@@ -114,6 +116,9 @@ class _RingViewState extends ConsumerState<RingView> {
               _night,
               DateTime.now(),
             );
+            // Not awaited: the page closes now and the advisor's kind
+            // words show up on the home page when they arrive.
+            comfort.requestFor(_night, recovery);
             return recoveryMessage(recovery);
           }),
           _secondary('再给我 15 分钟', () async {

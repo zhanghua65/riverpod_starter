@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '/app/core/di/advisor_provider.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
+import '/app/modules/settings/widgets/ai_settings_section.dart';
+import '/app/modules/settings/widgets/slider_tile.dart';
+import '/app/modules/settings/widgets/work_schedule_section.dart';
 
-/// Tunes the stepping plan and the anti-guilt recovery. A running plan is
-/// rebuilt (and its alarms registered again) when a value changes.
+/// Tunes the stepping plan and the anti-guilt recovery, and holds the work
+/// schedule and the AI advisor's endpoint. A running plan is rebuilt (and
+/// its alarms registered again) when a plan setting changes.
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rhythm = ref.watch(rhythmControllerProvider);
+    final ai = ref.watch(aiConfigProvider).value;
     return SafeArea(
       child: rhythm.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -35,7 +41,7 @@ class SettingsView extends ConsumerWidget {
                   child: Text('修改后会按新的设置重排当前计划并重新注册闹钟。'),
                 ),
               const SizedBox(height: 8),
-              _SliderTile(
+              SliderTile(
                 title: '每晚最多提前',
                 unit: '分钟',
                 value: settings.maxStepMinutes,
@@ -44,7 +50,7 @@ class SettingsView extends ConsumerWidget {
                 step: 5,
                 onChanged: (v) => update(settings.copyWith(maxStepMinutes: v)),
               ),
-              _SliderTile(
+              SliderTile(
                 title: '过渡期最多',
                 unit: '晚',
                 value: settings.maxDays,
@@ -53,7 +59,7 @@ class SettingsView extends ConsumerWidget {
                 step: 1,
                 onChanged: (v) => update(settings.copyWith(maxDays: v)),
               ),
-              _SliderTile(
+              SliderTile(
                 title: '降速准备提前',
                 unit: '分钟',
                 value: settings.windDownLeadMinutes,
@@ -66,7 +72,11 @@ class SettingsView extends ConsumerWidget {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('午休胶囊时间'),
-                subtitle: const Text('晚睡后的第二天在这个时间提醒小睡 20 分钟'),
+                subtitle: Text(
+                  state.work == null
+                      ? '晚睡后的第二天在这个时间提醒小睡 20 分钟'
+                      : '晚睡后的第二天提醒小睡 20 分钟；工作日改在午休时间',
+                ),
                 trailing: Text(
                   settings.napTime.toString(),
                   style: const TextStyle(fontSize: 18),
@@ -76,6 +86,10 @@ class SettingsView extends ConsumerWidget {
                   if (picked != null) await update(settings.copyWith(napTime: picked));
                 },
               ),
+              const Divider(height: 32),
+              WorkScheduleSection(work: state.work),
+              const Divider(height: 32),
+              if (ai != null) AiSettingsSection(config: ai),
               const Divider(height: 32),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -89,57 +103,6 @@ class SettingsView extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
-}
-
-/// A slider that saves only when the user lets go.
-class _SliderTile extends StatefulWidget {
-  const _SliderTile({
-    required this.title,
-    required this.unit,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.step,
-    required this.onChanged,
-  });
-
-  final String title;
-  final String unit;
-  final int value;
-  final int min;
-  final int max;
-  final int step;
-  final Future<void> Function(int value) onChanged;
-
-  @override
-  State<_SliderTile> createState() => _SliderTileState();
-}
-
-class _SliderTileState extends State<_SliderTile> {
-  double? _dragging;
-
-  @override
-  Widget build(BuildContext context) {
-    final value = _dragging ?? widget.value.toDouble();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('${widget.title} ${value.round()} ${widget.unit}'),
-        Slider(
-          value: value,
-          min: widget.min.toDouble(),
-          max: widget.max.toDouble(),
-          divisions: (widget.max - widget.min) ~/ widget.step,
-          label: '${value.round()}',
-          onChanged: (v) => setState(() => _dragging = v),
-          onChangeEnd: (v) async {
-            await widget.onChanged(v.round());
-            if (mounted) setState(() => _dragging = null);
-          },
-        ),
-      ],
     );
   }
 }

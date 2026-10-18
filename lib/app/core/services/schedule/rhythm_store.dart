@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '/app/core/services/ai/ai_config.dart';
 import 'plan_config.dart';
 import 'rhythm_settings.dart';
+import 'work_schedule.dart';
 
 /// One night in the sleep log: when the user planned to and actually went
 /// to bed.
@@ -33,8 +35,27 @@ class SleepLogEntry {
   );
 }
 
-/// Local persistence for the plan and the sleep log (nothing leaves the
-/// device).
+/// The advisor's kind words for a night the user went to bed late.
+class Comfort {
+  const Comfort({required this.night, required this.text});
+
+  final DateTime night;
+  final String text;
+
+  Map<String, Object> toJson() => {
+    'night': night.toIso8601String(),
+    'text': text,
+  };
+
+  factory Comfort.fromJson(Map<String, dynamic> json) => Comfort(
+    night: DateTime.parse(json['night'] as String),
+    text: json['text'] as String,
+  );
+}
+
+/// Local persistence for the plan, the sleep log and the AI settings. Only
+/// the AI advisor sends anything off the device, and only to the endpoint
+/// the user entered.
 class RhythmStore {
   RhythmStore(this._prefs);
 
@@ -45,6 +66,10 @@ class RhythmStore {
   static const _settingsKey = 'rhythm.settings';
   static const _vendorTipKey = 'rhythm.vendorTipDone';
   static const _onboardingKey = 'rhythm.onboardingDone';
+  static const _workKey = 'rhythm.work';
+  static const _aiKey = 'rhythm.ai';
+  static const _comfortKey = 'rhythm.aiComfort';
+  static const _reviewedAtKey = 'rhythm.aiReviewedAt';
 
   /// Older entries are dropped beyond this many nights.
   static const maxLogEntries = 30;
@@ -77,6 +102,45 @@ class RhythmStore {
 
   Future<void> saveSettings(RhythmSettings settings) =>
       _prefs.setString(_settingsKey, jsonEncode(settings.toJson()));
+
+  /// Null until the user enters a work schedule.
+  WorkSchedule? loadWork() {
+    final raw = _prefs.getString(_workKey);
+    if (raw == null) return null;
+    return WorkSchedule.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveWork(WorkSchedule? work) => work == null
+      ? _prefs.remove(_workKey)
+      : _prefs.setString(_workKey, jsonEncode(work.toJson()));
+
+  AiConfig loadAiConfig() {
+    final raw = _prefs.getString(_aiKey);
+    if (raw == null) return const AiConfig();
+    return AiConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveAiConfig(AiConfig config) =>
+      _prefs.setString(_aiKey, jsonEncode(config.toJson()));
+
+  Comfort? loadComfort() {
+    final raw = _prefs.getString(_comfortKey);
+    if (raw == null) return null;
+    return Comfort.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveComfort(Comfort? comfort) => comfort == null
+      ? _prefs.remove(_comfortKey)
+      : _prefs.setString(_comfortKey, jsonEncode(comfort.toJson()));
+
+  /// When the last weekly review was applied or dismissed.
+  DateTime? get reviewedAt {
+    final raw = _prefs.getString(_reviewedAtKey);
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  Future<void> setReviewedAt(DateTime at) =>
+      _prefs.setString(_reviewedAtKey, at.toIso8601String());
 
   /// Newest first.
   List<SleepLogEntry> loadLog() {

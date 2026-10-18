@@ -8,6 +8,9 @@ String hourMinute(DateTime t) => '${_two(t.hour)}:${_two(t.minute)}';
 
 String monthDay(DateTime t) => '${t.month}月${t.day}日';
 
+String weekdayName(DateTime t) =>
+    const ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][t.weekday - 1];
+
 /// Sleep length in hours and how many 90-minute cycles it covers.
 String sleepSummary(Duration sleep) {
   final hours = sleep.inMinutes / 60;

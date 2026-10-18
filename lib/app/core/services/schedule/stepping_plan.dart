@@ -11,6 +11,17 @@ class ClockTime {
 
   ClockTime.of(DateTime t) : this(t.hour, t.minute);
 
+  /// Parses `HH:mm` (also `H:mm`); null when [text] is not a valid time.
+  static ClockTime? tryParse(Object? text) {
+    if (text is! String) return null;
+    final match = RegExp(r'^\s*(\d{1,2}):(\d{2})\s*$').firstMatch(text);
+    if (match == null) return null;
+    final hour = int.parse(match[1]!);
+    final minute = int.parse(match[2]!);
+    if (hour > 23 || minute > 59) return null;
+    return ClockTime(hour, minute);
+  }
+
   final int hour;
   final int minute;
 

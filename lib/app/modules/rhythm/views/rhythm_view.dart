@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '/app/core/di/advisor_provider.dart';
 import '/app/core/di/alarm_provider.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
@@ -8,6 +9,7 @@ import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
 import '/app/core/services/schedule/stepping_plan.dart';
+import '/app/modules/rhythm/widgets/advisor_card.dart';
 import '/app/modules/rhythm/widgets/keep_alive_steps.dart';
 import '/app/modules/rhythm/widgets/plan_setup.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
@@ -47,7 +49,7 @@ class _RhythmViewState extends ConsumerState<RhythmView> {
                 )
               else ...[
                 _PlanOverview(plan: plan, log: state.log),
-                const SizedBox(height: 8),
+                AdvisorCard(plan: plan, log: state.log),
                 OutlinedButton(
                   onPressed: () => _recordLastNight(plan),
                   child: const Text('补记昨晚入睡时间'),
@@ -112,6 +114,8 @@ class _RhythmViewState extends ConsumerState<RhythmView> {
     final recovery = await ref
         .read(rhythmControllerProvider.notifier)
         .confirmBedtime(night, at);
+    // Best effort; the kind words show up on this page when they arrive.
+    ref.read(comfortProvider.notifier).requestFor(night, recovery);
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -191,7 +195,11 @@ class _PlanOverview extends StatelessWidget {
         if (next != null)
           Card(
             child: ListTile(
-              title: Text('${monthDay(next.night)} 这一晚'),
+              title: Text(
+                plan.overrides.containsKey(next.night)
+                    ? '${monthDay(next.night)} 这一晚（临时作息）'
+                    : '${monthDay(next.night)} 这一晚',
+              ),
               subtitle: Text(chainSummary(next)),
             ),
           ),
