@@ -1,6 +1,6 @@
-import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '/app/core/di/advisor_provider.dart';
 import '/app/core/di/alarm_provider.dart';
 import '/app/core/di/rhythm_provider.dart';
@@ -11,8 +11,8 @@ import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
 import '/app/core/services/schedule/stepping_plan.dart';
 import '/app/core/values/app_values.dart';
+import '/app/routes/app_routes.dart';
 import '/app/modules/rhythm/widgets/advisor_card.dart';
-import '/app/modules/rhythm/widgets/keep_alive_steps.dart';
 import '/app/modules/rhythm/widgets/plan_setup.dart';
 import '/app/modules/rhythm/widgets/time_format.dart';
 
@@ -106,10 +106,7 @@ class _RhythmViewState extends ConsumerState<RhythmView>
               ],
               const Divider(height: 32),
               const _UpcomingAlarms(),
-              const _BatteryOptimizationTile(),
-              const _FullScreenIntentTile(),
-              const _ScreenUsageTile(),
-              const _XiaomiTipTile(),
+              const _PermissionBanner(),
               const _DebugPanel(),
             ],
           );
@@ -486,195 +483,55 @@ class _UpcomingAlarms extends ConsumerWidget {
   }
 }
 
-class _BatteryOptimizationTile extends StatefulWidget {
-  const _BatteryOptimizationTile();
+/// Points to the permission page while something the alarms need is missing.
+class _PermissionBanner extends StatefulWidget {
+  const _PermissionBanner();
 
   @override
-  State<_BatteryOptimizationTile> createState() =>
-      _BatteryOptimizationTileState();
+  State<_PermissionBanner> createState() => _PermissionBannerState();
 }
 
-class _BatteryOptimizationTileState extends State<_BatteryOptimizationTile> {
-  bool? _ignored;
+class _PermissionBannerState extends State<_PermissionBanner>
+    with WidgetsBindingObserver {
+  bool _missing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Back from the system settings page.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
   Future<void> _refresh() async {
-    final ignored = await AlarmPermissions.batteryOptimizationIgnored();
-    if (mounted) setState(() => _ignored = ignored);
+    final report = await AlarmPermissions.check();
+    if (mounted) setState(() => _missing = !report.allGranted);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_ignored != false) return const SizedBox.shrink();
+    if (!_missing) return const SizedBox.shrink();
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.battery_alert, color: Colors.orange),
-      title: const Text('关闭电池优化'),
-      subtitle: const Text('部分手机会在后台拦截闹钟，建议允许本应用不受电池优化限制'),
+      leading: const Icon(Icons.error, color: Colors.orange),
+      title: const Text('有权限还没放行'),
+      subtitle: const Text('闹钟可能不准时，或锁屏时不亮屏。点此到权限自检里处理'),
+      trailing: const Icon(Icons.chevron_right),
       onTap: () async {
-        await AlarmPermissions.requestIgnoreBatteryOptimizations();
+        await context.push(Paths.PERMISSIONS);
         await _refresh();
       },
-    );
-  }
-}
-
-/// Asks for the full-screen notification permission, without which the
-/// screen stays dark when an alarm rings on a locked phone (Android 14+).
-class _FullScreenIntentTile extends StatefulWidget {
-  const _FullScreenIntentTile();
-
-  @override
-  State<_FullScreenIntentTile> createState() => _FullScreenIntentTileState();
-}
-
-class _FullScreenIntentTileState extends State<_FullScreenIntentTile>
-    with WidgetsBindingObserver {
-  bool? _allowed;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _refresh();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  // Back from the system settings page.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
-  }
-
-  Future<void> _refresh() async {
-    final allowed = await AlarmPermissions.fullScreenIntentAllowed();
-    if (mounted) setState(() => _allowed = allowed);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_allowed != false) return const SizedBox.shrink();
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.screen_lock_portrait, color: Colors.orange),
-      title: const Text('允许全屏通知'),
-      subtitle: const Text('否则闹钟响铃时锁屏不会亮屏弹出提醒页'),
-      onTap: AlarmPermissions.openFullScreenIntentSettings,
-    );
-  }
-}
-
-/// Offers usage access, which lets the app record bedtime from the
-/// screen-off time when the user forgets to tap "我已躺下".
-class _ScreenUsageTile extends ConsumerStatefulWidget {
-  const _ScreenUsageTile();
-
-  @override
-  ConsumerState<_ScreenUsageTile> createState() => _ScreenUsageTileState();
-}
-
-class _ScreenUsageTileState extends ConsumerState<_ScreenUsageTile>
-    with WidgetsBindingObserver {
-  bool? _granted;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _refresh();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  // Back from the system settings page.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
-  }
-
-  Future<void> _refresh() async {
-    if (!Alarm.android) return;
-    final granted = await ref.read(screenUsageProvider).hasAccess();
-    if (mounted) setState(() => _granted = granted);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_granted != false) return const SizedBox.shrink();
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.phonelink_lock, color: Colors.orange),
-      title: const Text('自动记录入睡时间'),
-      subtitle: const Text(
-        '在“使用情况访问权限”里允许本应用，就能用每晚最后一次熄屏的时间当作入睡时间，'
-        '忘了点“我已躺下”也能记上。只在本机读取',
-      ),
-      onTap: () => ref.read(screenUsageProvider).openSettings(),
-    );
-  }
-}
-
-/// Reminds Xiaomi users to set up auto-start until they confirm it is done.
-class _XiaomiTipTile extends ConsumerStatefulWidget {
-  const _XiaomiTipTile();
-
-  @override
-  ConsumerState<_XiaomiTipTile> createState() => _XiaomiTipTileState();
-}
-
-class _XiaomiTipTileState extends ConsumerState<_XiaomiTipTile> {
-  bool _xiaomi = false;
-
-  @override
-  void initState() {
-    super.initState();
-    AlarmPermissions.isXiaomi().then((v) {
-      if (mounted) setState(() => _xiaomi = v);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final done = ref.watch(vendorTipProvider).value ?? true;
-    if (!_xiaomi || done) return const SizedBox.shrink();
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '划掉应用后闹钟可能不响',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const XiaomiKeepAliveSteps(),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () =>
-                    ref.read(vendorTipProvider.notifier).setDone(true),
-                child: const Text('我已设置好'),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
