@@ -69,7 +69,7 @@ MVP 只做三件事:算法排期、睡前强打断、晨间温和唤醒;白噪�
 
 ### 闹钟插件:alarm
 
-候选方案为 [gdelataillade/alarm](https://github.com/gdelataillade/alarm)(评估版本 5.15.0,2026-10-05 发布)。以下结论来自其 README 与原生源码,未在真机上验证。
+候选方案为 [gdelataillade/alarm](https://github.com/gdelataillade/alarm)(评估版本 5.15.0,2026-10-05 发布)。以下结论来自其 README 与原生源码;V1.0 的闹钟、锁屏亮屏和杀进程行为已由开发者在 Android 真机上验证。
 
 | 核查点 | 结论 | 依据 |
 | --- | --- | --- |
