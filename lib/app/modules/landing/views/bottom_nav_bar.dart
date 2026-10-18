@@ -36,7 +36,7 @@ class BottomNavBar extends ConsumerWidget {
                   width: AppValues.iconDefaultSize,
                   colorFilter: ColorFilter.mode(
                     _navItems.indexOf(navItem) == selectedIndex
-                        ? AppColors.selectedItemColor
+                        ? AppColors.colorPrimary
                         : AppColors.unselectedItemColor,
                     BlendMode.srcIn,
                   ),
@@ -48,8 +48,11 @@ class BottomNavBar extends ConsumerWidget {
       showSelectedLabels: true,
       showUnselectedLabels: true,
       type: BottomNavigationBarType.fixed,
-      backgroundColor: AppColors.colorAccent,
-      selectedItemColor: AppColors.selectedItemColor,
+      backgroundColor: Colors.white,
+      elevation: 8,
+      selectedFontSize: 12,
+      unselectedFontSize: 12,
+      selectedItemColor: AppColors.colorPrimary,
       unselectedItemColor: AppColors.unselectedItemColor,
       currentIndex: selectedIndex,
       onTap: (index) {

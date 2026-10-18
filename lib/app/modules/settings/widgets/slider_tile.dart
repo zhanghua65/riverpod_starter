@@ -34,7 +34,20 @@ class _SliderTileState extends State<SliderTile> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${widget.title} ${value.round()} ${widget.unit}'),
+        Text.rich(
+          TextSpan(
+            text: '${widget.title} ',
+            children: [
+              TextSpan(
+                text: '${value.round()} ${widget.unit}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
         Slider(
           value: value,
           min: widget.min.toDouble(),

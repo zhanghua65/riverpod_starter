@@ -10,6 +10,7 @@ import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
 import '/app/core/services/schedule/stepping_plan.dart';
+import '/app/core/values/app_values.dart';
 import '/app/modules/rhythm/widgets/advisor_card.dart';
 import '/app/modules/rhythm/widgets/keep_alive_steps.dart';
 import '/app/modules/rhythm/widgets/plan_setup.dart';
@@ -74,7 +75,7 @@ class _RhythmViewState extends ConsumerState<RhythmView>
         data: (state) {
           final plan = state.plan;
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
               if (plan == null || _editing)
                 PlanSetup(
@@ -88,10 +89,12 @@ class _RhythmViewState extends ConsumerState<RhythmView>
               else ...[
                 _PlanOverview(plan: plan, log: state.log),
                 AdvisorCard(plan: plan, log: state.log),
-                OutlinedButton(
+                const SizedBox(height: 8),
+                FilledButton(
                   onPressed: () => _recordLastNight(plan),
                   child: const Text('补记昨晚入睡时间'),
                 ),
+                const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: () => setState(() => _editing = true),
                   child: const Text('重新设定计划'),
@@ -214,6 +217,76 @@ String screenRecordMessage(ScreenRecord record) {
   return parts.join('\n');
 }
 
+/// The plan's headline: target times, transition progress and the streak.
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({
+    required this.title,
+    required this.progress,
+    required this.fraction,
+    required this.streak,
+  });
+
+  final String title;
+  final String progress;
+  final double fraction;
+  final int streak;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppValues.largeRadius),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF38686A), Color(0xFF5A8F8C)],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(progress, style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: fraction.clamp(0.0, 1.0),
+              minHeight: 6,
+              backgroundColor: Colors.white24,
+              valueColor: const AlwaysStoppedAnimation(Colors.white),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const Icon(
+                Icons.local_fire_department,
+                size: 18,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '连续按时入睡 $streak 晚',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PlanOverview extends StatelessWidget {
   const _PlanOverview({required this.plan, required this.log});
 
@@ -238,19 +311,20 @@ class _PlanOverview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '目标 ${plan.targetBedtime} 睡 · ${plan.targetWakeUp} 起',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          dayIndex >= 0
+        _HeroCard(
+          title: '目标 ${plan.targetBedtime} 睡 · ${plan.targetWakeUp} 起',
+          progress: dayIndex >= 0
               ? '过渡期第 ${dayIndex + 1} / ${transition.length} 晚'
               : '已到达目标作息，每天按目标提醒',
+          fraction: dayIndex >= 0 && transition.isNotEmpty
+              ? (dayIndex + 1) / transition.length
+              : 1,
+          streak: streak,
         ),
         if (next != null)
           Card(
             child: ListTile(
+              leading: const Icon(Icons.nights_stay_outlined),
               title: Text(
                 plan.overrides.containsKey(next.night)
                     ? '${monthDay(next.night)} 这一晚（临时作息）'
@@ -260,11 +334,9 @@ class _PlanOverview extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 8),
-        Text('连续按时入睡 $streak 晚'),
         for (final entry in log.take(7))
           ListTile(
             dense: true,
-            contentPadding: EdgeInsets.zero,
             leading: Icon(
               entry.lateBy < Recovery.grace
                   ? Icons.check_circle

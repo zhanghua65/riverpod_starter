@@ -29,11 +29,11 @@ class SettingsView extends ConsumerWidget {
               .updateSettings(next);
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
               const Text(
                 '设置',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
               ),
               if (state.plan != null)
                 const Padding(
@@ -41,6 +41,13 @@ class SettingsView extends ConsumerWidget {
                   child: Text('修改后会按新的设置重排当前计划并重新注册闹钟。'),
                 ),
               const SizedBox(height: 8),
+              const _SectionTitle('作息节奏'),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               SliderTile(
                 title: '每晚最多提前',
                 unit: '分钟',
@@ -86,22 +93,60 @@ class SettingsView extends ConsumerWidget {
                   if (picked != null) await update(settings.copyWith(napTime: picked));
                 },
               ),
-              const Divider(height: 32),
-              WorkScheduleSection(work: state.work),
-              const Divider(height: 32),
-              if (ai != null) AiSettingsSection(config: ai),
-              const Divider(height: 32),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
+                    ],
+                  ),
+                ),
+              ),
+              const _SectionTitle('工作'),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: WorkScheduleSection(work: state.work),
+                ),
+              ),
+              if (ai != null) ...[
+                const _SectionTitle('AI 顾问'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: AiSettingsSection(config: ai),
+                  ),
+                ),
+              ],
+              const _SectionTitle('其他'),
+              Card(
+                child: ListTile(
                 leading: const Icon(Icons.help_outline),
                 title: const Text('重新查看使用引导'),
                 subtitle: const Text('权限、电池优化和锁屏弹出设置'),
                 onTap: () =>
                     ref.read(onboardingProvider.notifier).setDone(false),
+                ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 0),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }

@@ -41,19 +41,34 @@ class _RingViewState extends ConsumerState<RingView> {
       canPop: false,
       child: Scaffold(
         backgroundColor: AppColors.colorDark,
-        body: SafeArea(
-          child: Padding(
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1F3A3C), AppColors.colorDark],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Spacer(),
+                Icon(_icon(stage), size: 56, color: Colors.white54),
+                const SizedBox(height: 16),
                 Text(
                   hourMinute(DateTime.now()),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70, fontSize: 48),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 64,
+                    fontWeight: FontWeight.w200,
+                    letterSpacing: 2,
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
                 Text(
                   widget.alarm.notificationSettings.title,
                   textAlign: TextAlign.center,
@@ -67,16 +82,37 @@ class _RingViewState extends ConsumerState<RingView> {
                 Text(
                   _hint(stage),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70, fontSize: 18),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 18,
+                    height: 1.6,
+                  ),
                 ),
                 const Spacer(),
                 ..._actions(stage),
               ],
             ),
           ),
+          ),
         ),
       ),
     );
+  }
+
+  IconData _icon(AlarmStage? stage) {
+    switch (stage) {
+      case AlarmStage.windDown:
+        return Icons.phonelink_erase;
+      case AlarmStage.bedtime:
+        return Icons.bedtime;
+      case AlarmStage.wakeUp:
+        return Icons.wb_sunny;
+      case AlarmStage.nap:
+      case AlarmStage.napWake:
+        return Icons.self_improvement;
+      case null:
+        return Icons.alarm;
+    }
   }
 
   String _hint(AlarmStage? stage) {
@@ -154,7 +190,12 @@ class _RingViewState extends ConsumerState<RingView> {
   Widget _primary(String label, Future<String?> Function() action) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: ElevatedButton(
-      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+      style: ElevatedButton.styleFrom(
+        minimumSize: const Size.fromHeight(56),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.colorPrimary,
+        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+      ),
       onPressed: _busy ? null : () => _finish(action),
       child: Text(label),
     ),
