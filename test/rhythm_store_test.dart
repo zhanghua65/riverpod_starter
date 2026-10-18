@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:riverpod_starter/app/core/services/ai/ai_config.dart';
+import 'package:riverpod_starter/app/core/services/ai/secret_store.dart';
 import 'package:riverpod_starter/app/core/services/schedule/rhythm_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   final entry = SleepLogEntry(
@@ -77,5 +82,40 @@ void main() {
     final restored = SleepLogEntry.fromJson(json);
     expect(restored.source, BedtimeSource.manual);
     expect(restored.wakeUpSource, BedtimeSource.screen);
+  });
+
+  group('AI key storage', () {
+    const config = AiConfig(
+      baseUrl: 'https://example.com/v1',
+      apiKey: 'sk-secret',
+      model: 'm',
+    );
+
+    test('the key goes to the secret store, not the preferences', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final secrets = MemorySecretStore();
+      final store = RhythmStore(prefs, secrets: secrets);
+
+      await store.saveAiConfig(config);
+
+      expect(await secrets.readApiKey(), 'sk-secret');
+      expect(prefs.getString('rhythm.ai'), isNot(contains('sk-secret')));
+      expect(await store.loadAiConfig(), config);
+    });
+
+    test('a key saved in the preferences moves over on first load', () async {
+      SharedPreferences.setMockInitialValues({
+        'rhythm.ai': jsonEncode(config.toJson()),
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final secrets = MemorySecretStore();
+      final store = RhythmStore(prefs, secrets: secrets);
+
+      expect(await store.loadAiConfig(), config);
+      expect(await secrets.readApiKey(), 'sk-secret');
+      expect(prefs.getString('rhythm.ai'), isNot(contains('sk-secret')));
+      expect(await store.loadAiConfig(), config);
+    });
   });
 }

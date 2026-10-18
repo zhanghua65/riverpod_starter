@@ -11,6 +11,9 @@ import '/app/modules/rhythm/widgets/time_format.dart';
 class HistoryView extends ConsumerWidget {
   const HistoryView({super.key});
 
+  /// Nights drawn as bars; older ones only count in the weekly list.
+  static const _barNights = 30;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final log = ref.watch(rhythmControllerProvider).valueOrNull?.log ?? const [];
@@ -23,7 +26,9 @@ class HistoryView extends ConsumerWidget {
               children: [
                 _Summary(stats: SleepStats.of(log)),
                 const SizedBox(height: 16),
-                _DurationBars(log: log),
+                _DurationBars(log: log.take(_barNights).toList()),
+                const SizedBox(height: 16),
+                _WeeklyList(weeks: WeekStats.of(log)),
                 const Divider(height: 32),
                 for (final e in log) _NightTile(entry: e),
               ],
@@ -81,6 +86,38 @@ class _Stat extends StatelessWidget {
       Text(label, style: Theme.of(context).textTheme.bodySmall),
     ],
   );
+}
+
+class _WeeklyList extends StatelessWidget {
+  const _WeeklyList({required this.weeks});
+
+  final List<WeekStats> weeks;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('每周汇总', style: Theme.of(context).textTheme.titleSmall),
+        for (final w in weeks)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              '${monthDay(w.monday)} 起的一周',
+            ),
+            subtitle: Text(
+              '按时入睡 ${w.stats.onTimeNights}/${w.stats.nights} 晚',
+            ),
+            trailing: Text(
+              w.stats.averageSleep == null
+                  ? '—'
+                  : '平均 ${durationText(w.stats.averageSleep!)}',
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 /// One bar per night (oldest on the left); the line marks 7.5 hours.

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '/app/core/services/ai/ai_config.dart';
+import '/app/core/services/ai/secret_store.dart';
 import 'plan_config.dart';
 import 'rhythm_settings.dart';
 import 'work_schedule.dart';
@@ -126,9 +127,11 @@ class Comfort {
 /// the AI advisor sends anything off the device, and only to the endpoint
 /// the user entered.
 class RhythmStore {
-  RhythmStore(this._prefs);
+  RhythmStore(this._prefs, {SecretStore? secrets})
+    : _secrets = secrets ?? MemorySecretStore();
 
   final SharedPreferences _prefs;
+  final SecretStore _secrets;
 
   static const _planKey = 'rhythm.plan';
   static const _logKey = 'rhythm.log';
@@ -141,7 +144,7 @@ class RhythmStore {
   static const _reviewedAtKey = 'rhythm.aiReviewedAt';
 
   /// Older entries are dropped beyond this many nights.
-  static const maxLogEntries = 30;
+  static const maxLogEntries = 365;
 
   PlanConfig? loadPlan() {
     final raw = _prefs.getString(_planKey);
@@ -183,14 +186,38 @@ class RhythmStore {
       ? _prefs.remove(_workKey)
       : _prefs.setString(_workKey, jsonEncode(work.toJson()));
 
-  AiConfig loadAiConfig() {
+  /// The key is read from the [SecretStore]. Configs saved before that
+  /// existed carry it in the preferences; it moves over on first load.
+  Future<AiConfig> loadAiConfig() async {
     final raw = _prefs.getString(_aiKey);
     if (raw == null) return const AiConfig();
-    return AiConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    final legacyKey = json['apiKey'];
+    if (legacyKey is String && legacyKey.isNotEmpty) {
+      await _secrets.writeApiKey(legacyKey);
+      // Only drop the plain copy once the secure one reads back.
+      if (await _secrets.readApiKey() == legacyKey) {
+        json.remove('apiKey');
+        await _prefs.setString(_aiKey, jsonEncode(json));
+      } else {
+        return AiConfig.fromJson(json);
+      }
+    }
+    final config = AiConfig.fromJson(json);
+    return AiConfig(
+      baseUrl: config.baseUrl,
+      apiKey: await _secrets.readApiKey(),
+      model: config.model,
+    );
   }
 
-  Future<void> saveAiConfig(AiConfig config) =>
-      _prefs.setString(_aiKey, jsonEncode(config.toJson()));
+  Future<void> saveAiConfig(AiConfig config) async {
+    await _secrets.writeApiKey(config.apiKey);
+    await _prefs.setString(
+      _aiKey,
+      jsonEncode({'baseUrl': config.baseUrl, 'model': config.model}),
+    );
+  }
 
   Comfort? loadComfort() {
     final raw = _prefs.getString(_comfortKey);

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '/app/core/di/alarm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/ai/rhythm_advisor.dart';
+import '/app/core/services/ai/secret_store.dart';
 import '/app/core/services/alarm/alarm_stage.dart';
 import '/app/core/services/schedule/recall_plan.dart';
 import '/app/core/services/schedule/plan_config.dart';
@@ -34,7 +35,10 @@ class RhythmState {
 }
 
 final rhythmStoreProvider = FutureProvider<RhythmStore>(
-  (ref) async => RhythmStore(await SharedPreferences.getInstance()),
+  (ref) async => RhythmStore(
+    await SharedPreferences.getInstance(),
+    secrets: SecureSecretStore(),
+  ),
 );
 
 final screenUsageProvider = Provider<ScreenUsage>((ref) => ScreenUsage());

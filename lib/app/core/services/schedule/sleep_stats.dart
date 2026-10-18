@@ -51,3 +51,30 @@ class SleepStats {
   /// Share of nights on time, 0 for an empty log.
   double get onTimeRate => nights == 0 ? 0 : onTimeNights / nights;
 }
+
+/// One calendar week (Monday to Sunday) of the sleep log.
+class WeekStats {
+  const WeekStats({required this.monday, required this.stats});
+
+  /// The Monday of the week, at midnight.
+  final DateTime monday;
+  final SleepStats stats;
+
+  /// Groups [log] (newest first) by the week of each night, newest week
+  /// first.
+  static List<WeekStats> of(List<SleepLogEntry> log) {
+    final weeks = <DateTime, List<SleepLogEntry>>{};
+    for (final e in log) {
+      final monday = DateTime(
+        e.night.year,
+        e.night.month,
+        e.night.day - (e.night.weekday - DateTime.monday),
+      );
+      weeks.putIfAbsent(monday, () => []).add(e);
+    }
+    final mondays = weeks.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [
+      for (final m in mondays) WeekStats(monday: m, stats: SleepStats.of(weeks[m]!)),
+    ];
+  }
+}

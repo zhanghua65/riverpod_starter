@@ -37,4 +37,20 @@ void main() {
     expect(stats.averageLateBy, const Duration(minutes: 10));
     expect(stats.onTimeNights, 2);
   });
+
+  test('weeks run Monday to Sunday, newest first', () {
+    // 2026-10-18 is a Sunday, 10-19 the next Monday.
+    final weeks = WeekStats.of([
+      night(19, 0, sleepMinutes: 420),
+      night(18, 30, sleepMinutes: 480),
+      night(12, 0, sleepMinutes: 360),
+    ]);
+    expect(weeks.map((w) => w.monday), [
+      DateTime(2026, 10, 19),
+      DateTime(2026, 10, 12),
+    ]);
+    expect(weeks[0].stats.nights, 1);
+    expect(weeks[1].stats.nights, 2);
+    expect(weeks[1].stats.averageSleep, const Duration(minutes: 420));
+  });
 }
