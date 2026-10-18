@@ -21,6 +21,17 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+// Short hash of the commit being built, so the diagnostic log can tell
+// which build is installed.
+def gitCommit() {
+    try {
+        def out = 'git rev-parse --short HEAD'.execute(null, rootProject.projectDir).text.trim()
+        return out ? out : 'unknown'
+    } catch (ignored) {
+        return 'unknown'
+    }
+}
+
 def loadPropertiesFile(String fileName) {
     println(fileName)
     def properties = new Properties()
@@ -82,6 +93,11 @@ android {
         targetSdk flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        buildConfigField "String", "GIT_COMMIT", "\"${gitCommit()}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     lint {

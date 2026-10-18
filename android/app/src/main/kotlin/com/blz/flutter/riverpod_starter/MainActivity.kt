@@ -16,6 +16,9 @@ import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
@@ -67,6 +70,7 @@ class MainActivity : FlutterActivity() {
                     // App-specific external dir: no permission needed, and
                     // `adb pull` can read it.
                     "logDir" -> result.success(getExternalFilesDir(null)?.absolutePath)
+                    "buildInfo" -> result.success(buildInfo())
                     "hasUsageAccess" -> result.success(hasUsageAccess())
                     "openUsageAccessSettings" -> {
                         openUsageAccessSettings()
@@ -89,6 +93,13 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    // Version, commit and install time of this build, for the diagnostic log.
+    private fun buildInfo(): String {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        val installed = SimpleDateFormat("MM-dd HH:mm", Locale.US).format(Date(info.lastUpdateTime))
+        return "${info.versionName} ${BuildConfig.GIT_COMMIT} installed $installed"
     }
 
     // Android 14+ can withhold the full-screen intent that lights the screen
