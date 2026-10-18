@@ -411,19 +411,3 @@ class OnboardingController extends AsyncNotifier<bool> {
     state = AsyncData(done);
   }
 }
-
-final vendorTipProvider = AsyncNotifierProvider<VendorTipController, bool>(
-  VendorTipController.new,
-);
-
-/// Whether the user said the phone's background limits are set up.
-class VendorTipController extends AsyncNotifier<bool> {
-  @override
-  Future<bool> build() async =>
-      (await ref.watch(rhythmStoreProvider.future)).vendorTipDone;
-
-  Future<void> setDone(bool done) async {
-    await (await ref.read(rhythmStoreProvider.future)).setVendorTipDone(done);
-    state = AsyncData(done);
-  }
-}
