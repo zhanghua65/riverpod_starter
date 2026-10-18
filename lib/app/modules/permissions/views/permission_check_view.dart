@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/app/core/utils/app_log.dart';
@@ -53,6 +55,13 @@ class _PermissionCheckViewState extends State<PermissionCheckView>
         _log = log;
       });
     }
+  }
+
+  /// Device line plus the log, oldest first: all an AI needs to read it.
+  Future<String> _export() async {
+    final maker = await AlarmPermissions.manufacturer();
+    return 'device=$maker os=${Platform.operatingSystemVersion}\n'
+        '${_log.join('\n')}';
   }
 
   @override
@@ -146,7 +155,7 @@ class _PermissionCheckViewState extends State<PermissionCheckView>
                   ),
                 const _Header('诊断日志'),
                 Text(
-                  '记录权限检测、闹钟注册、响铃和应用前后台切换。闹钟没亮屏时，把最近的日志复制给开发者。',
+                  '只记缺失的权限、闹钟注册、响铃和前后台切换。复制时会带上手机型号和系统版本。',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 Row(
@@ -156,9 +165,7 @@ class _PermissionCheckViewState extends State<PermissionCheckView>
                       label: const Text('复制日志'),
                       onPressed: () async {
                         final messenger = ScaffoldMessenger.of(context);
-                        await Clipboard.setData(
-                          ClipboardData(text: _log.join('\n')),
-                        );
+                        await Clipboard.setData(ClipboardData(text: await _export()));
                         messenger.showSnackBar(
                           const SnackBar(content: Text('已复制日志')),
                         );

@@ -49,6 +49,8 @@ abstract class AlarmPermissions {
         await Permission.scheduleExactAlarm.isGranted;
   }
 
+  static String? _lastLogged;
+
   /// Reads every status that can be read, without prompting.
   static Future<AlarmPermissionReport> check() async {
     if (!Alarm.android) {
@@ -65,12 +67,17 @@ abstract class AlarmPermissions {
       fullScreenIntent: await fullScreenIntentAllowed(),
       batteryOptimizationIgnored: await batteryOptimizationIgnored(),
     );
-    AppLog.add(
-      'perm',
-      'notification=${report.notification} exactAlarm=${report.exactAlarm} '
-      'fullScreenIntent=${report.fullScreenIntent} '
-      'batteryIgnored=${report.batteryOptimizationIgnored}',
-    );
+    // Only what is missing: the AI reading the log needs the problems.
+    final missing = [
+      if (!report.notification) 'notification',
+      if (!report.exactAlarm) 'exactAlarm',
+      if (!report.fullScreenIntent) 'fullScreenIntent',
+      if (!report.batteryOptimizationIgnored) 'batteryOptimization',
+    ].join(',');
+    if (missing != _lastLogged) {
+      _lastLogged = missing;
+      AppLog.add('perm', missing.isEmpty ? 'all granted' : 'missing: $missing');
+    }
     return report;
   }
 
@@ -86,9 +93,7 @@ abstract class AlarmPermissions {
   );
 
   static Future<bool> _requestOrOpenSettings(Permission permission) async {
-    final granted = await _request(permission);
-    AppLog.add('perm', 'request $permission granted=$granted');
-    if (granted) return true;
+    if (await _request(permission)) return true;
     await openAppSettings();
     return false;
   }
@@ -131,14 +136,19 @@ abstract class AlarmPermissions {
   /// recents force-stops it and cancels its alarms unless the app is allowed
   /// to auto-start and has no battery restriction.
   static Future<bool> isXiaomi() async {
-    if (!Alarm.android) return false;
+    final maker = await manufacturer();
+    return maker.contains('xiaomi') ||
+        maker.contains('redmi') ||
+        maker.contains('poco');
+  }
+
+  /// Lower-case manufacturer, or '' off Android.
+  static Future<String> manufacturer() async {
+    if (!Alarm.android) return '';
     try {
-      final maker = await _channel.invokeMethod<String>('manufacturer') ?? '';
-      return maker.contains('xiaomi') ||
-          maker.contains('redmi') ||
-          maker.contains('poco');
+      return await _channel.invokeMethod<String>('manufacturer') ?? '';
     } on MissingPluginException {
-      return false;
+      return '';
     }
   }
 

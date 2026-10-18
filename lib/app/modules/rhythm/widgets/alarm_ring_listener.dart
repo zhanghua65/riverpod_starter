@@ -1,5 +1,6 @@
 import 'package:alarm/alarm.dart';
 import 'package:alarm/utils/alarm_set.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/app/core/di/alarm_provider.dart';
@@ -22,12 +23,13 @@ class _AlarmRingListenerState extends ConsumerState<AlarmRingListener>
     with WidgetsBindingObserver {
   /// Ids whose page is already open, so a ringing alarm opens one page.
   final _shown = <int>{};
+  var _lastIds = <int>{};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    AppLog.add('app', 'start, lifecycle=${WidgetsBinding.instance.lifecycleState}');
+    AppLog.add('app', 'launch ${WidgetsBinding.instance.lifecycleState?.name}');
     ref.listenManual<AsyncValue<AlarmSet>>(
       ringingAlarmsProvider,
       (_, next) => _onRinging(next.value?.alarms ?? const {}),
@@ -44,15 +46,23 @@ class _AlarmRingListenerState extends ConsumerState<AlarmRingListener>
   // Tells whether the app was in front when an alarm rang, or was woken by
   // its full-screen intent.
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) =>
-      AppLog.add('app', 'lifecycle=${state.name}');
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // inactive and hidden are transitions that add nothing.
+    if (state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.paused) {
+      AppLog.add('app', state.name);
+    }
+  }
 
   void _onRinging(Set<AlarmSettings> ringing) {
     final ids = {for (final a in ringing) a.id};
-    if (ringing.isNotEmpty || _shown.isNotEmpty) {
+    if (!setEquals(ids, _lastIds)) {
+      _lastIds = ids;
       AppLog.add(
         'ring',
-        'ringing=$ids lifecycle=${WidgetsBinding.instance.lifecycleState?.name}',
+        ids.isEmpty
+            ? 'stopped'
+            : 'ringing $ids app=${WidgetsBinding.instance.lifecycleState?.name}',
       );
     }
     // Forget alarms that stopped, so a snoozed one opens a page again.
@@ -62,7 +72,7 @@ class _AlarmRingListenerState extends ConsumerState<AlarmRingListener>
         // The navigator may not be built yet when the app is launched by
         // the alarm.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          AppLog.add('ring', 'open ring page id=${alarm.id}');
+          AppLog.add('ring', 'open page ${alarm.id}');
           AppPages.router.push(Paths.RING, extra: alarm);
         });
       }

@@ -10,18 +10,17 @@ import 'alarm_chain.dart';
 class AlarmService {
   /// Must run once before any other call, after
   /// `WidgetsFlutterBinding.ensureInitialized()`.
-  static Future<void> init() async {
-    await Alarm.init();
-    AppLog.add('alarm', 'init, ${(await Alarm.getAlarms()).length} registered');
-  }
+  static Future<void> init() => Alarm.init();
 
   /// Registers every future stage of [chain]. Stages already in the past are
   /// skipped. Returns false if any registration failed.
   Future<bool> scheduleChain(AlarmChain chain) async {
+    final all = chain.toAlarmSettings();
     var ok = true;
-    for (final settings in chain.toAlarmSettings()) {
-      ok = await schedule(settings) && ok;
+    for (final settings in all) {
+      ok = await Alarm.set(alarmSettings: settings) && ok;
     }
+    _logSet(all, ok);
     return ok;
   }
 
@@ -32,12 +31,15 @@ class AlarmService {
   Future<bool> scheduleChains(List<AlarmChain> chains) async {
     final existing = {for (final a in await getAlarms()) a.id: a};
     var ok = true;
+    final changed = <AlarmSettings>[];
     for (final chain in chains) {
       for (final settings in chain.toAlarmSettings()) {
         if (existing[settings.id] == settings) continue;
-        ok = await schedule(settings) && ok;
+        ok = await Alarm.set(alarmSettings: settings) && ok;
+        changed.add(settings);
       }
     }
+    _logSet(changed, ok);
     return ok;
   }
 
@@ -53,12 +55,19 @@ class AlarmService {
 
   Future<bool> schedule(AlarmSettings settings) async {
     final ok = await Alarm.set(alarmSettings: settings);
+    _logSet([settings], ok);
+    return ok;
+  }
+
+  /// One line per registration batch, not per alarm: a start re-registers
+  /// up to 24 alarms.
+  void _logSet(List<AlarmSettings> set, bool ok) {
+    if (set.isEmpty && ok) return;
+    final times = [for (final s in set) s.dateTime]..sort();
     AppLog.add(
       'alarm',
-      'set id=${settings.id} at=${settings.dateTime} '
-      'fullScreen=${settings.androidFullScreenIntent} ok=$ok',
+      'set ${set.length}, next=${times.isEmpty ? '-' : times.first} ok=$ok',
     );
-    return ok;
   }
 
   Future<void> cancelChain(AlarmChain chain) async {
@@ -67,15 +76,9 @@ class AlarmService {
     }
   }
 
-  Future<bool> stop(int id) {
-    AppLog.add('alarm', 'stop id=$id');
-    return Alarm.stop(id);
-  }
+  Future<bool> stop(int id) => Alarm.stop(id);
 
-  Future<void> stopAll() {
-    AppLog.add('alarm', 'stopAll');
-    return Alarm.stopAll();
-  }
+  Future<void> stopAll() => Alarm.stopAll();
 
   Future<List<AlarmSettings>> getAlarms() => Alarm.getAlarms();
 }
