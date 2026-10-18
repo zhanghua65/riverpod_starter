@@ -14,6 +14,9 @@ enum BedtimeSource {
 
   /// Inferred from when the screen went off for the night.
   screen,
+
+  /// From the sleep a band synced to Health Connect.
+  band,
 }
 
 /// One night in the sleep log: when the user planned to and actually went
@@ -37,8 +40,8 @@ class SleepLogEntry {
   /// is known.
   final DateTime? actualWakeUp;
 
-  /// How [actualWakeUp] was recorded: from the morning's screen use, or
-  /// entered by the user.
+  /// How [actualWakeUp] was recorded: from the morning's screen use, the
+  /// band, or entered by the user.
   final BedtimeSource wakeUpSource;
 
   SleepLogEntry withWakeUp(
@@ -53,11 +56,16 @@ class SleepLogEntry {
     wakeUpSource: source,
   );
 
-  /// The same night with the bedtime corrected by the user.
-  SleepLogEntry withBedtime(DateTime at) => SleepLogEntry(
+  /// The same night with the bedtime corrected by the user, or replaced by
+  /// a better [source].
+  SleepLogEntry withBedtime(
+    DateTime at, {
+    BedtimeSource source = BedtimeSource.manual,
+  }) => SleepLogEntry(
     night: night,
     plannedBedtime: plannedBedtime,
     actualBedtime: at,
+    source: source,
     actualWakeUp: actualWakeUp,
     wakeUpSource: wakeUpSource,
   );
@@ -78,16 +86,16 @@ class SleepLogEntry {
     plannedBedtime: DateTime.parse(json['planned'] as String),
     actualBedtime: DateTime.parse(json['actual'] as String),
     // Entries saved before sources existed were all entered by the user.
-    source: json['source'] == BedtimeSource.screen.name
-        ? BedtimeSource.screen
-        : BedtimeSource.manual,
+    source:
+        BedtimeSource.values.asNameMap()[json['source']] ??
+        BedtimeSource.manual,
     actualWakeUp: json['wakeUp'] is String
         ? DateTime.tryParse(json['wakeUp'] as String)
         : null,
     // Wake-ups saved before sources existed all came from the screen.
-    wakeUpSource: json['wakeUpSource'] == BedtimeSource.manual.name
-        ? BedtimeSource.manual
-        : BedtimeSource.screen,
+    wakeUpSource:
+        BedtimeSource.values.asNameMap()[json['wakeUpSource']] ??
+        BedtimeSource.screen,
   );
 }
 
@@ -225,6 +233,25 @@ class RhythmStore {
         for (final e in loadLog()) e.night == night ? e.withWakeUp(at) : e,
       ]);
 
+  /// Replaces the logged bedtime and/or wake-up of [night] with the times
+  /// the band recorded. Nothing changes when that night has no entry.
+  Future<List<SleepLogEntry>> setBandTimes(
+    DateTime night, {
+    DateTime? bedtime,
+    DateTime? wakeUp,
+  }) => _saveLog([
+    for (final e in loadLog())
+      if (e.night != night)
+        e
+      else
+        _edited(
+          e,
+          bedtime: bedtime,
+          wakeUp: wakeUp,
+          source: BedtimeSource.band,
+        ),
+  ]);
+
   /// Replaces the logged bedtime and/or wake-up of [night] with times the
   /// user entered. Nothing changes when that night has no entry.
   Future<List<SleepLogEntry>> editLog(
@@ -240,10 +267,11 @@ class RhythmStore {
     SleepLogEntry e, {
     DateTime? bedtime,
     DateTime? wakeUp,
+    BedtimeSource source = BedtimeSource.manual,
   }) {
-    var edited = bedtime == null ? e : e.withBedtime(bedtime);
+    var edited = bedtime == null ? e : e.withBedtime(bedtime, source: source);
     if (wakeUp != null) {
-      edited = edited.withWakeUp(wakeUp, source: BedtimeSource.manual);
+      edited = edited.withWakeUp(wakeUp, source: source);
     }
     return edited;
   }

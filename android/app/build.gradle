@@ -78,7 +78,8 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.blz.flutter.riverpod_starter"
-        minSdk flutter.minSdkVersion
+        // Health Connect's client library needs Android 8.
+        minSdk Math.max(flutter.minSdkVersion as int, 26)
         targetSdk flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -117,6 +118,13 @@ android {
             dimension "default"
         }
     }
+}
+
+dependencies {
+    // Reads the sleep a band app (Mi Fitness) syncs to Health Connect.
+    implementation "androidx.health.connect:connect-client:1.1.0"
+    implementation "androidx.activity:activity-ktx:1.9.3"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
 }
 
 flutter {

@@ -201,15 +201,28 @@ String screenRecordMessage(ScreenRecord record) {
   final parts = <String>[];
   final bedtime = record.bedtime;
   final recovery = record.recovery;
-  if (bedtime != null && recovery != null) {
-    final off = '昨晚 ${hourMinute(bedtime)} 熄屏，已记为入睡时间';
-    parts.add(
-      recovery.isLate ? '$off。${recoveryMessage(recovery)}' : '$off，按计划入睡，继续保持',
-    );
+  if (bedtime != null) {
+    final off = record.fromBand
+        ? '手环记录昨晚 ${hourMinute(bedtime)} 入睡'
+        : '昨晚 ${hourMinute(bedtime)} 熄屏，已记为入睡时间';
+    if (recovery == null) {
+      // The band replaced a screen-off time recorded earlier.
+      if (record.fromBand) parts.add('$off，已更新记录');
+    } else {
+      parts.add(
+        recovery.isLate
+            ? '$off。${recoveryMessage(recovery)}'
+            : '$off，按计划入睡，继续保持',
+      );
+    }
   }
   final wakeUp = record.wakeUp;
   if (wakeUp != null) {
-    parts.add('今早 ${hourMinute(wakeUp)} 开始用手机，已记为起床时间');
+    parts.add(
+      record.fromBand
+          ? '手环记录今早 ${hourMinute(wakeUp)} 醒来，已记为起床时间'
+          : '今早 ${hourMinute(wakeUp)} 开始用手机，已记为起床时间',
+    );
   }
   return parts.join('\n');
 }
@@ -356,14 +369,20 @@ class _PlanOverview extends StatelessWidget {
 }
 
 String _logLine(SleepLogEntry entry) {
-  final screen = entry.source == BedtimeSource.screen ? '（熄屏）' : '';
+  final bedSource = switch (entry.source) {
+    BedtimeSource.screen => '（熄屏）',
+    BedtimeSource.band => '（手环）',
+    BedtimeSource.manual => '',
+  };
   final wakeUp = entry.actualWakeUp;
-  final woke = wakeUp == null
-      ? ''
-      : ' · 起床 ${hourMinute(wakeUp)}'
-            '${entry.wakeUpSource == BedtimeSource.screen ? '（亮屏）' : ''}';
+  final wakeSource = switch (entry.wakeUpSource) {
+    BedtimeSource.screen => '（亮屏）',
+    BedtimeSource.band => '（手环）',
+    BedtimeSource.manual => '',
+  };
+  final woke = wakeUp == null ? '' : ' · 起床 ${hourMinute(wakeUp)}$wakeSource';
   return '计划 ${hourMinute(entry.plannedBedtime)} · '
-      '实际 ${hourMinute(entry.actualBedtime)}$screen$woke';
+      '实际 ${hourMinute(entry.actualBedtime)}$bedSource$woke';
 }
 
 /// Lets the user correct the bedtime and wake-up recorded for [night].
@@ -410,9 +429,11 @@ class _EditEntrySheet extends ConsumerWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('实际入睡'),
-              subtitle: Text(
-                entry.source == BedtimeSource.screen ? '按熄屏时间自动记录' : '手动记录',
-              ),
+              subtitle: Text(switch (entry.source) {
+                BedtimeSource.screen => '按熄屏时间自动记录',
+                BedtimeSource.band => '按手环记录的入睡时间',
+                BedtimeSource.manual => '手动记录',
+              }),
               trailing: Text(
                 hourMinute(entry.actualBedtime),
                 style: const TextStyle(fontSize: 18),
@@ -431,9 +452,11 @@ class _EditEntrySheet extends ConsumerWidget {
               subtitle: Text(
                 wakeUp == null
                     ? '还没有记录，点击补记'
-                    : entry.wakeUpSource == BedtimeSource.screen
-                    ? '按早上亮屏超过 10 分钟自动记录'
-                    : '手动记录',
+                    : switch (entry.wakeUpSource) {
+                        BedtimeSource.screen => '按早上亮屏超过 10 分钟自动记录',
+                        BedtimeSource.band => '按手环记录的醒来时间',
+                        BedtimeSource.manual => '手动记录',
+                      },
               ),
               trailing: Text(
                 wakeUp == null ? '--:--' : hourMinute(wakeUp),

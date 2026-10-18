@@ -4,12 +4,14 @@ import '/app/core/di/alarm_provider.dart';
 import '/app/core/services/alarm/alarm_chain.dart';
 import '/app/core/services/ai/rhythm_advisor.dart';
 import '/app/core/services/alarm/alarm_stage.dart';
+import '/app/core/services/schedule/band_sleep.dart';
 import '/app/core/services/schedule/plan_config.dart';
 import '/app/core/services/schedule/recovery.dart';
 import '/app/core/services/schedule/rhythm_settings.dart';
 import '/app/core/services/schedule/rhythm_store.dart';
 import '/app/core/services/schedule/stepping_plan.dart';
 import '/app/core/services/schedule/screen_bedtime.dart';
+import '/app/core/services/usage/health_sleep.dart';
 import '/app/core/services/usage/screen_usage.dart';
 import '/app/core/services/schedule/work_schedule.dart';
 
@@ -38,26 +40,34 @@ final rhythmStoreProvider = FutureProvider<RhythmStore>(
 
 final screenUsageProvider = Provider<ScreenUsage>((ref) => ScreenUsage());
 
-/// What was recorded for a night from the screen's on/off history.
+final healthSleepProvider = Provider<HealthSleep>((ref) => HealthSleep());
+
+/// What was recorded for a night from the band's sleep or the screen's
+/// on/off history.
 class ScreenRecord {
   const ScreenRecord({
     required this.night,
     this.bedtime,
     this.recovery,
     this.wakeUp,
+    this.fromBand = false,
   });
 
   final DateTime night;
 
-  /// Bedtime taken from the screen-off time; null when the user had
-  /// recorded it already.
+  /// Bedtime taken from the band or the screen-off time; null when it was
+  /// recorded already.
   final DateTime? bedtime;
 
   /// What recording [bedtime] changed; null with it.
   final Recovery? recovery;
 
-  /// When the user got up, from the first long screen use in the morning.
+  /// When the user got up, from the band or the first long screen use in
+  /// the morning.
   final DateTime? wakeUp;
+
+  /// True when the times came from the band's sleep in Health Connect.
+  final bool fromBand;
 }
 
 final rhythmControllerProvider =
@@ -195,14 +205,18 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     state = AsyncData(_stateOf(null, _store.loadLog()));
   }
 
-  /// Fills in last night from the screen's on/off history, once last
-  /// night's wake-up has passed and usage access is granted: the bedtime
+  /// Fills in last night once its wake-up has passed. The band's sleep in
+  /// Health Connect comes first: it fills in or replaces times taken from
+  /// the screen, but never ones the user entered. Without band data, falls
+  /// back to the screen's on/off history (needs usage access): the bedtime
   /// from when the screen went off, if the user has not recorded it, and
   /// the wake-up from the first [ScreenBedtime.wakeUse] of screen use in
   /// the morning. Null when nothing new was recorded.
   ///
   /// By then the wake-up has rung, so a late night still books the nap
-  /// capsule and re-plans but no longer postpones the wake-up.
+  /// capsule and re-plans but no longer postpones the wake-up. Band times
+  /// that replace screen times only change the record: the screen-off
+  /// bedtime already re-planned.
   Future<ScreenRecord?> recordFromScreen({bool throttled = false}) async {
     final now = DateTime.now();
     final last = _lastScreenCheck;
@@ -214,9 +228,21 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     final plan = current.plan;
     if (plan == null) return null;
     final night = DateTime(now.year, now.month, now.day - 1);
-    final planned = plan.chainFor(night);
-    if (planned == null || now.isBefore(planned.wakeUp)) return null;
     final logged = _entryFor(current.log, night);
+    final planned = _plannedChain(plan, night, logged);
+    if (planned == null || now.isBefore(planned.wakeUp)) return null;
+    if (_bandMayImprove(logged)) {
+      final sessions = await ref
+          .read(healthSleepProvider)
+          .sessions(
+            ScreenBedtime.windowStart(planned),
+            ScreenBedtime.windowEnd(planned),
+          );
+      final sleep = sessions == null
+          ? null
+          : BandSleep.pick(planned: planned, sessions: sessions, now: now);
+      if (sleep != null) return _recordFromBand(night, sleep);
+    }
     if (logged?.actualWakeUp != null) return null;
 
     final events = await ref
@@ -264,6 +290,85 @@ class RhythmController extends AsyncNotifier<RhythmState> {
       bedtime: inferred,
       recovery: recovery,
       wakeUp: wakeUp,
+    );
+  }
+
+  /// What [plan] had for [night]. A late night re-plans from the next night
+  /// on, which drops [night] from the plan; then its logged planned bedtime
+  /// stands in, with the next night's wind-down lead and sleep length.
+  static AlarmChain? _plannedChain(
+    PlanConfig plan,
+    DateTime night,
+    SleepLogEntry? logged,
+  ) {
+    final chain = plan.chainFor(night);
+    if (chain != null || logged == null) return chain;
+    final next = plan.chainFor(
+      DateTime(night.year, night.month, night.day + 1),
+    );
+    if (next == null) return null;
+    final bed = logged.plannedBedtime;
+    return AlarmChain(
+      night: night,
+      windDown: bed.subtract(next.bedtime.difference(next.windDown)),
+      bedtime: bed,
+      wakeUp: bed.add(next.wakeUp.difference(next.bedtime)),
+    );
+  }
+
+  /// True while [entry] has a time the band could fill in or replace: one
+  /// missing or taken from the screen.
+  static bool _bandMayImprove(SleepLogEntry? entry) =>
+      entry == null ||
+      entry.source == BedtimeSource.screen ||
+      entry.actualWakeUp == null ||
+      entry.wakeUpSource == BedtimeSource.screen;
+
+  /// Records [sleep] for [night]. A night with no entry goes through
+  /// [confirmBedtime] like any other bedtime; screen times are replaced in
+  /// the record only. Null when nothing changed.
+  Future<ScreenRecord?> _recordFromBand(
+    DateTime night,
+    SleepSession sleep,
+  ) async {
+    var entry = _entryFor((await future).log, night);
+    DateTime? bedtime;
+    Recovery? recovery;
+    if (entry == null) {
+      recovery = await confirmBedtime(
+        night,
+        sleep.start,
+        source: BedtimeSource.band,
+      );
+      bedtime = sleep.start;
+    } else if (entry.source == BedtimeSource.screen) {
+      bedtime = sleep.start;
+    }
+    entry = _entryFor((await future).log, night);
+    if (entry == null) return null;
+    final wakeUp =
+        (entry.actualWakeUp == null ||
+                entry.wakeUpSource == BedtimeSource.screen) &&
+            sleep.end.isAfter(bedtime ?? entry.actualBedtime)
+        ? sleep.end
+        : null;
+    // Recovery set means confirmBedtime already saved the band bedtime.
+    final replaceBedtime = recovery == null ? bedtime : null;
+    if (replaceBedtime != null || wakeUp != null) {
+      final log = await _store.setBandTimes(
+        night,
+        bedtime: replaceBedtime,
+        wakeUp: wakeUp,
+      );
+      state = AsyncData(_stateOf((await future).plan, log));
+    }
+    if (bedtime == null && wakeUp == null) return null;
+    return ScreenRecord(
+      night: night,
+      bedtime: bedtime,
+      recovery: recovery,
+      wakeUp: wakeUp,
+      fromBand: true,
     );
   }
 
