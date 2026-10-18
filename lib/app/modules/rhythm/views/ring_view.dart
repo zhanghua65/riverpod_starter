@@ -24,6 +24,10 @@ class RingView extends ConsumerStatefulWidget {
 
   final AlarmSettings alarm;
 
+  /// Id of the ring page currently open, if any. Set by whoever pushes the
+  /// page and cleared when that page goes away.
+  static int? openId;
+
   @override
   ConsumerState<RingView> createState() => _RingViewState();
 }
@@ -44,6 +48,7 @@ class _RingViewState extends ConsumerState<RingView> {
   @override
   void dispose() {
     AppLog.add('ring', 'page disposed $_id');
+    if (RingView.openId == _id) RingView.openId = null;
     super.dispose();
   }
 
@@ -232,6 +237,9 @@ class _RingViewState extends ConsumerState<RingView> {
     // Close the page before running [action]: on a locked screen the app is
     // paused right after the alarm stops, and the action's native calls may
     // stall, which would leave this page on the stack for the next launch.
+    // Cleared now rather than in dispose, which waits for the pop animation:
+    // an alarm ringing meanwhile must not replace whatever is underneath.
+    if (RingView.openId == _id) RingView.openId = null;
     final canPop = router.canPop();
     if (canPop) {
       router.pop();
