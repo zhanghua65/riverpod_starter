@@ -127,6 +127,13 @@ class SettingsView extends ConsumerWidget {
                       onTap: () => context.push(Paths.PERMISSIONS),
                     ),
                     ListTile(
+                      leading: const Icon(Icons.watch_outlined),
+                      title: const Text('手环睡眠数据'),
+                      subtitle: const Text('查看 Health Connect 里同步到的睡眠记录'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push(Paths.BAND_SLEEP),
+                    ),
+                    ListTile(
                       leading: const Icon(Icons.help_outline),
                       title: const Text('重新查看使用引导'),
                       subtitle: const Text('权限、电池优化和锁屏弹出设置'),

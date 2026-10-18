@@ -1,9 +1,11 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '/app/core/di/rhythm_provider.dart';
 import '/app/core/services/alarm/alarm_permissions.dart';
 import '/app/core/services/usage/health_sleep.dart';
+import '/app/routes/app_routes.dart';
 
 /// What the alarms need from the phone, in one place: the settings the app can
 /// read show a real status, the vendor switches only link to their page.
@@ -200,8 +202,9 @@ class _PermissionChecklistState extends ConsumerState<PermissionChecklist>
           leading: const Icon(Icons.check_circle, color: Colors.green),
           title: const Text(title),
           subtitle: const Text(
-            '已允许。还需在小米运动健康（Mi Fitness）里打开“同步到 Health Connect”的睡眠数据，手环同步后才读得到',
+            '已允许。还需在小米运动健康（Mi Fitness）里打开“同步到 Health Connect”的睡眠数据，手环同步后才读得到。点此查看已同步的数据',
           ),
+          onTap: () => context.push(Paths.BAND_SLEEP),
           trailing: TextButton(
             onPressed: () async {
               if (!await health.openBandApp()) await health.openSettings();
