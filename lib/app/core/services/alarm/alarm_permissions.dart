@@ -2,6 +2,8 @@ import 'package:alarm/alarm.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+Future<bool> openAppSettingsPage() => openAppSettings();
+
 /// Runtime permissions the alarm chain needs on Android.
 ///
 /// Manifest declarations alone are not enough: Android 13+ asks the user for
@@ -18,6 +20,18 @@ abstract class AlarmPermissions {
     final exactAlarm = await _request(Permission.scheduleExactAlarm);
     return notification && exactAlarm;
   }
+
+  /// True when notifications and exact alarms are both granted (or not on
+  /// Android). Unlike [ensureGranted] it never prompts.
+  static Future<bool> basicGranted() async {
+    if (!Alarm.android) return true;
+    return await Permission.notification.isGranted &&
+        await Permission.scheduleExactAlarm.isGranted;
+  }
+
+  /// Opens this app's page in the system settings, where ROM-specific
+  /// switches (auto-start, lock-screen display, pop-ups) live.
+  static Future<bool> openAppSettings() => openAppSettingsPage();
 
   /// Some Android ROMs kill background work under battery optimization,
   /// which can drop alarms. True when the app is exempt (or not on Android).

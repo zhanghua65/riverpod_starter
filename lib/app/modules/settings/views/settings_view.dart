@@ -76,6 +76,15 @@ class SettingsView extends ConsumerWidget {
                   if (picked != null) await update(settings.copyWith(napTime: picked));
                 },
               ),
+              const Divider(height: 32),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.help_outline),
+                title: const Text('重新查看使用引导'),
+                subtitle: const Text('权限、电池优化和锁屏弹出设置'),
+                onTap: () =>
+                    ref.read(onboardingProvider.notifier).setDone(false),
+              ),
             ],
           );
         },

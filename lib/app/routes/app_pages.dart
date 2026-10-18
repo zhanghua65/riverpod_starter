@@ -2,6 +2,7 @@ import 'package:alarm/alarm.dart';
 import 'package:go_router/go_router.dart';
 import '/app/routes/app_routes.dart';
 import '/app/modules/landing/views/landing_view.dart';
+import '/app/modules/onboarding/views/onboarding_gate.dart';
 import '/app/modules/rhythm/views/ring_view.dart';
 
 
@@ -15,7 +16,8 @@ class AppPages {
       GoRoute(
           name: Routes.LANDING,
           path: Paths.LANDING,
-          builder: (context, state) => LandingView()),
+          builder: (context, state) =>
+              OnboardingGate(child: LandingView())),
       GoRoute(
           name: Routes.RING,
           path: Paths.RING,

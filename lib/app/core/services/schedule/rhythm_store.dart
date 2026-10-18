@@ -43,6 +43,7 @@ class RhythmStore {
   static const _planKey = 'rhythm.plan';
   static const _logKey = 'rhythm.log';
   static const _settingsKey = 'rhythm.settings';
+  static const _onboardingKey = 'rhythm.onboardingDone';
 
   /// Older entries are dropped beyond this many nights.
   static const maxLogEntries = 30;
@@ -56,6 +57,11 @@ class RhythmStore {
   Future<void> savePlan(PlanConfig? plan) => plan == null
       ? _prefs.remove(_planKey)
       : _prefs.setString(_planKey, jsonEncode(plan.toJson()));
+
+  bool get onboardingDone => _prefs.getBool(_onboardingKey) ?? false;
+
+  Future<void> setOnboardingDone(bool done) =>
+      _prefs.setBool(_onboardingKey, done);
 
   RhythmSettings loadSettings() {
     final raw = _prefs.getString(_settingsKey);

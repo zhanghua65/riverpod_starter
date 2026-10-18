@@ -164,3 +164,19 @@ class RhythmController extends AsyncNotifier<RhythmState> {
     return ok;
   }
 }
+
+final onboardingProvider = AsyncNotifierProvider<OnboardingController, bool>(
+  OnboardingController.new,
+);
+
+/// Whether the first-use guide has been completed.
+class OnboardingController extends AsyncNotifier<bool> {
+  @override
+  Future<bool> build() async =>
+      (await ref.watch(rhythmStoreProvider.future)).onboardingDone;
+
+  Future<void> setDone(bool done) async {
+    await (await ref.read(rhythmStoreProvider.future)).setOnboardingDone(done);
+    state = AsyncData(done);
+  }
+}
