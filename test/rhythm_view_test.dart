@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod_starter/app/core/di/alarm_provider.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_chain.dart';
 import 'package:riverpod_starter/app/core/services/alarm/alarm_stage.dart';
+import 'package:riverpod_starter/app/modules/rhythm/views/history_view.dart';
 import 'package:riverpod_starter/app/modules/rhythm/views/rhythm_view.dart';
 import 'package:riverpod_starter/app/modules/rhythm/views/ring_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -71,5 +72,14 @@ void main() {
 
     expect(find.text('我已躺下'), findsOneWidget);
     expect(find.text('再给我 15 分钟'), findsOneWidget);
+  }, variant: notAndroid);
+
+  testWidgets('the history page says so when there are no records', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(const HistoryView()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('还没有睡眠记录'), findsOneWidget);
   }, variant: notAndroid);
 }

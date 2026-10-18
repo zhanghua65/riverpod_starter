@@ -6,6 +6,7 @@ import '/app/modules/landing/views/landing_view.dart';
 import '/app/modules/onboarding/views/onboarding_gate.dart';
 import '/app/modules/permissions/views/band_sleep_view.dart';
 import '/app/modules/permissions/views/permission_check_view.dart';
+import '/app/modules/rhythm/views/history_view.dart';
 import '/app/modules/rhythm/views/ring_view.dart';
 
 
@@ -34,6 +35,10 @@ class AppPages {
           name: Routes.BAND_SLEEP,
           path: Paths.BAND_SLEEP,
           builder: (context, state) => const BandSleepView()),
+      GoRoute(
+          name: Routes.HISTORY,
+          path: Paths.HISTORY,
+          builder: (context, state) => const HistoryView()),
     ],
   );
 }

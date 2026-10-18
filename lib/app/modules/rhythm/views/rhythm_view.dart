@@ -434,6 +434,8 @@ class _LastNightCard extends StatelessWidget {
         leading: const Icon(Icons.bedtime_outlined),
         title: Text(headline),
         subtitle: Text(detail),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => context.push(Paths.HISTORY),
       ),
     );
   }
